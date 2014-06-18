@@ -1616,7 +1616,12 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
  } // 1
 
   std::cout << "Starting reading PFOs" << std::endl;
+  float _sumPFOEnergy(0.);
+  double sumClustEcalE(0.); //PFO cluster energy in Ecal
+  double sumClustHcalE(0.); //PFO cluster energy in Hcal
+  int nbPFOs(0);
   for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
+    nbPFOs++;
     std::cout << "Particle Id: " << (*itPFO)->GetParticleId() << std::endl;
     //std::cout << "Charge: " << (*itPFO)->GetCharge() << std::endl;
     //std::cout << "Mass: " << (*itPFO)->GetMass() << std::endl;
@@ -1635,7 +1640,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
     PANDORA_MONITORING_API(VisualizeTracks(  trackAddressList  , "currentTrackList", AUTO, false, true  ) );    
     PANDORA_MONITORING_API(ViewEvent() );
 
-   std::cout << " ARE YOU GEETING IN HERE 1  ns " <<  clusterAddressList.size() << std::endl;
+   std::cout << " ARE YOU GEETING IN HERE 1  ns, PFO(" << nbPFOs << "): " << clusterAddressList.size() << std::endl;
 
     for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end(); itCluster != itClusterEnd; ++itCluster){
       const unsigned int nHitsInCluster((*itCluster).size());
@@ -1653,9 +1658,11 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
 	if (ch->GetHitType() ==  pandora::ECAL) { 
 	  hgcrh = (EcalRecHit *) (*hIter);
 	  std::cout << "EcalRecHit energy " << hgcrh->energy() <<  std::endl;
+     sumClustEcalE += hgcrh->energy();
 	} else if (ch->GetHitType() ==  pandora::HCAL) {  
 	  hrh = (HBHERecHit *) (*hIter); 
 	  std::cout << "HcalRecHit energy " << hrh->energy() <<  std::endl;		  
+     sumClustHcalE += hrh->energy();
 	}
 	else {
 	 // std::cout << " No ECAL or HCAL??? What is this? " << ch->GetHitType() << std::endl;
@@ -1680,6 +1687,9 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
 
   }
 
+  h2_hcalEecalE->Fill(sumClustEcalE,sumClustHcalE);
+  h_sumPfoE->Fill(_sumPFOEnergy);
+  h_nbPFOs->Fill(nbPFOs);
 
 	
 }
@@ -1754,6 +1764,11 @@ void runPandora::beginJob()
   Epfos = new TH1F("TH1PFOEnergy","Energy of Reconstructed PFO",1000,0.,1000.);
   Egenpart = new TH1F("TH1GenParticlesEnergy","Energy of Generated Particles",1000,0.,1000.);
   Energy_res = new TH1F("TH1RES","#Delta E / E ",100,-2.,2.);
+
+  h_sumPfoE = new TH1F("hsumPfoE","sumPFOenergy",1000,0.,1000.);
+  h_nbPFOs = new TH1F("hnbPfos","nb of rec PFOs",30,0.,30.);
+  h2_hcalEecalE = new TH2F("hcalEecalE","",400,0,400,400,0,400);
+
   TH1::AddDirectory(oldAddDir);
 
   // read in calibration parameters
