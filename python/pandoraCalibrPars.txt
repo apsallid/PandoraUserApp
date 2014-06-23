@@ -1,0 +1,38 @@
+Calibr_ADC2GeV_EE 0.012
+Calibr_ADC2GeV_HEF 0.0176
+Calibr_ADC2GeV_HEB 0.3108
+
+# mip thresholds ----------
+#SubDet | MIP / keV | LSB / MIP
+#EE | 55.1 | 0.25
+#HEF | 85.0 | 0.25
+#HEB | 1498.4  | 0.25
+
+ECalMipThresEndCap 0.25
+ECalMipThresBarrel 0.25
+HCalMipThresEndCapHEF 0.25
+HCalMipThresEndCapHEB 0.25
+HCalMipThresBarrel 0.25
+
+# mip calibration -----------
+ECalToMipEndCap 18.149
+ECalToMipBarrel 20.0000
+HCalToMipEndCapHEF 11.765
+HCalToMipBarrelHEB 0.6674
+MuonToMip 10.0
+
+# EM calibration ----------------
+ECalToEMGeVEndCap 1.0
+ECalToEMGeVBarrel 1.0
+HCalToEMGeVEndCapHEF 1.0
+HCalToEMGeVEndCapHEB 1.0
+HCalToEMGeVBarrel 1.0
+
+# Hadron calibration
+ECalToHadGeVEndCap 1.0
+ECalToHadGeVBarrel 1.0
+HCalToHadGeVEndCapHEF 1.0
+HCalToHadGeVEndCapHEB 1.0
+HCalToHadGeVBarrel 1.0
+
+ 

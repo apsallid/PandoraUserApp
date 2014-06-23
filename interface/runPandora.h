@@ -53,6 +53,8 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "DQMServices/Core/interface/MonitorElement.h"
 
+#include "PFCal/runPandora/interface/steerManager.h"
+
 #include <TH1.h>
 #include <TFile.h>
 
@@ -87,6 +89,10 @@ public:
   std::string     m_calibrationParameterFile;
   void initPandoraCalibrParameters();
   void readCalibrParameterFile();
+  void getLayerProperties (const HGCRecHit *eerh, int layer,
+        float & nCellInteractionLengths, float & nCellRadiationLengths,
+        float & absorberCorrection
+        );
 
 
 private:
@@ -120,24 +126,33 @@ private:
 
   TH2F * h2_hcalEecalE;
 
+
+  float m_Calibr_ADC2GeV_EE     ;
+  float m_Calibr_ADC2GeV_HEF    ;
+  float m_Calibr_ADC2GeV_HEB    ;
+
   float m_hCalMipThresBarrel    ;
-  float m_hCalMipThresEndCap    ;
+  float m_hCalMipThresEndCapHEF ;
+  float m_hCalMipThresEndCapHEB ;
   float m_eCalMipThresBarrel    ;
   float m_eCalMipThresEndCap    ;
 
   float m_eCalToMipEndCap       ;
   float m_eCalToMipBarrel       ;
-  float m_hCalToMipEndCap       ;
+  float m_hCalToMipEndCapHEF    ;
+  float m_hCalToMipEndCapHEB    ;
   float m_hCalToMipBarrel       ;
 
   float m_eCalToEMGeVEndCap     ;
   float m_eCalToEMGeVBarrel     ;
-  float m_hCalToEMGeVEndCap     ;
+  float m_hCalToEMGeVEndCapHEF  ;
+  float m_hCalToEMGeVEndCapHEB  ;
   float m_hCalToEMGeVBarrel     ;
 
   float m_eCalToHadGeVEndCap    ;
   float m_eCalToHadGeVBarrel    ;
-  float m_hCalToHadGeVEndCap    ;
+  float m_hCalToHadGeVEndCapHEF ;
+  float m_hCalToHadGeVEndCapHEB ;
   float m_hCalToHadGeVBarrel    ;
 
   float m_muonToMip             ;
