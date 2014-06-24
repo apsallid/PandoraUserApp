@@ -53,7 +53,7 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "DQMServices/Core/interface/MonitorElement.h"
 
-#include "PFCal/runPandora/interface/steerManager.h"
+//#include "PFCal/runPandora/interface/steerManager.h"
 
 #include <TH1.h>
 #include <TFile.h>
