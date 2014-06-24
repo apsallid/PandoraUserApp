@@ -26,6 +26,7 @@
 
 // Addition for HGC geometry
 #include "Geometry/Records/interface/IdealGeometryRecord.h"
+#include "Geometry/CaloGeometry/interface/FlatTrd.h"
 #include "DataFormats/ForwardDetId/interface/HGCEEDetId.h"
 #include "DataFormats/ForwardDetId/interface/HGCHEDetId.h"
 #include "Geometry/FCalGeometry/interface/HGCalGeometry.h"
@@ -164,7 +165,7 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
     throw cms::Exception( "MissingProduct", err.str());
   } 
 
-  //// prepareTrack(B_,pRecoToSim,iEvent,iSetup);
+  prepareTrack(B_,pRecoToSim,iEvent,iSetup);
   prepareHits( ecalRecHitHandleEB,hcalRecHitHandleHBHE,HGCeeRecHitHandle,HGChefRecHitHandle,HGChebRecHitHandle,pv,iEvent,iSetup );
   preparemcParticle(genpart);
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
@@ -1178,7 +1179,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     // const HGCalTopology &hgceeTopology = *hgceeTopoHandle ; 
     
     // const HGCalGeometry geom = hgceeGeometry;
-    const CaloCellGeometry *thisCell = hgceeGeometry.getGeometry(detid);
+    const FlatTrd *thisCell = static_cast<const FlatTrd*>(hgceeGeometry.getGeometry(detid));	
+    // const CaloCellGeometry *thisCell = hgceeGeometry.getGeometry(detid);
   
     // find rechit geometry
     if(!thisCell) {
@@ -1187,7 +1189,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
       continue;
     }
   	  
-    const CaloCellGeometry::CornersVec& corners = thisCell->getCorners();
+    const HGCalGeometry::CornersVec corners = ( std::move( hgceeGeometry.getCorners( detid ) ) );
     assert( corners.size() == 8 );
     const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
     const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
@@ -1303,7 +1305,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     // const HGCalTopology &hgceeTopology = *hgceeTopoHandle ; 
     
     // const HGCalGeometry geom = hgceeGeometry;
-    const CaloCellGeometry *thisCell = hgchefGeometry.getGeometry(detid);
+    const FlatTrd *thisCell = static_cast<const FlatTrd*>(hgchefGeometry.getGeometry(detid));	
   
     // find rechit geometry
     if(!thisCell) {
@@ -1312,7 +1314,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
       continue;
     }
   	  
-    const CaloCellGeometry::CornersVec& corners = thisCell->getCorners();
+    const HGCalGeometry::CornersVec corners = ( std::move( hgchefGeometry.getCorners( detid ) ) );
     assert( corners.size() == 8 );
     const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
     const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );
@@ -1422,7 +1424,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     // const HGCalTopology &hgceeTopology = *hgceeTopoHandle ; 
     
     // const HGCalGeometry geom = hgceeGeometry;
-    const CaloCellGeometry *thisCell = hgchebGeometry.getGeometry(detid);
+    const FlatTrd *thisCell = static_cast<const FlatTrd*>(hgchebGeometry.getGeometry(detid));	
+    // const CaloCellGeometry *thisCell = hgchebGeometry.getGeometry(detid);
   
     // find rechit geometry
     if(!thisCell) {
@@ -1431,7 +1434,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
       continue;
     }
   	  
-    const CaloCellGeometry::CornersVec& corners = thisCell->getCorners();
+    const HGCalGeometry::CornersVec corners = ( std::move( hgchebGeometry.getCorners( detid ) ) );
     assert( corners.size() == 8 );
     const pandora::CartesianVector NECorner( corners[0].x(), corners[0].y(), corners[0].z() );
     const pandora::CartesianVector SECorner( corners[1].x(), corners[1].y(), corners[1].z() );

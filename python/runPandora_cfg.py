@@ -30,14 +30,13 @@ process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgradePLS3', '')
 # process.GlobalTag.globaltag = 'START70_V1::All'
 
 #process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(28) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(5) )
 
-#process.EveService = cms.Service("EveService")
+process.EveService = cms.Service("EveService")
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
-#        'file:myfile.root'
-        'file:/afs/cern.ch/work/t/trtran/slc5/CMSSW_6_2_0_SLHC14/sim/gamma/gamma10.100.0/step3.root'
+        'file:myfile.root'
     )
 )
 
