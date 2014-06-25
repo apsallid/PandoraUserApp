@@ -181,11 +181,11 @@ void runPandora::initPandoraCalibrParameters()
    m_Calibr_ADC2GeV_HEF = 0.0176; //w/o absorber thickness correction
    m_Calibr_ADC2GeV_HEB = 0.3108; //w/o absorber thickness correction
 
-   m_eCalMipThresEndCap    = 0.25;
-   m_eCalMipThresBarrel    = 0.25;
-   m_hCalMipThresEndCapHEF = 0.25;
-   m_hCalMipThresEndCapHEB = 0.25;
-   m_hCalMipThresBarrel    = 0.25;
+   m_eCalMipThresEndCap    = 0.5;
+   m_eCalMipThresBarrel    = 0.5;
+   m_hCalMipThresEndCapHEF = 0.5;
+   m_hCalMipThresEndCapHEB = 0.5;
+   m_hCalMipThresBarrel    = 0.5;
 
    m_eCalToMipEndCap       = 18.149; //3.3333333;
    m_eCalToMipBarrel       = 3.3333333;

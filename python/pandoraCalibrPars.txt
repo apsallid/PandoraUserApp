@@ -8,11 +8,11 @@ Calibr_ADC2GeV_HEB 0.3108
 #HEF | 85.0 | 0.25
 #HEB | 1498.4  | 0.25
 
-ECalMipThresEndCap 0.25
-ECalMipThresBarrel 0.25
-HCalMipThresEndCapHEF 0.25
-HCalMipThresEndCapHEB 0.25
-HCalMipThresBarrel 0.25
+ECalMipThresEndCap 0.5
+ECalMipThresBarrel 0.5
+HCalMipThresEndCapHEF 0.5
+HCalMipThresEndCapHEB 0.5
+HCalMipThresBarrel 0.5
 
 # mip calibration -----------
 ECalToMipEndCap 18.149
