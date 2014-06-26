@@ -18,7 +18,7 @@ HCalMipThresBarrel 0.5
 ECalToMipEndCap 18.149
 ECalToMipBarrel 20.0000
 HCalToMipEndCapHEF 11.765
-HCalToMipBarrelHEB 0.6674
+HCalToMipEndCapHEB 0.6674
 MuonToMip 10.0
 
 # EM calibration ----------------
