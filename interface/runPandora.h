@@ -124,6 +124,8 @@ private:
   TH1F * h_sumPfoE;
   TH1F * h_nbPFOs;
 
+  TH1F * h_sumCaloE;
+
   TH2F * h2_hcalEecalE;
 
 

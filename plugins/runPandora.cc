@@ -943,6 +943,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   double speedoflight = (CLHEP::c_light/CLHEP::cm)/CLHEP::ns;
   std::cout<< speedoflight << " cm/ns" << std::endl;
 
+  double sumCaloEnergy = 0.;
+
   // 
   // Process ECAL barrel rechits 
   // 
@@ -951,6 +953,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     const EcalRecHit * erh = &(*ecalRecHitHandleEB)[i];
     const DetId& detid = erh->detid();
     double energy = erh->energy();
+    sumCaloEnergy += energy;
 
     double time = erh->time();
     // std::cout << "energy " << energy <<  " time " << time <<std::endl;
@@ -1057,6 +1060,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     const DetId& detid = hrh->detid();
     double energy = hrh->energy();
     double time = hrh->time();
+    sumCaloEnergy += energy;
 
     HcalSubdetector hsd=(HcalSubdetector)detid.subdetId();
     if (hsd != 1) continue; // HCAL BARREL ONLY
@@ -1156,6 +1160,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     // * getLayerProperties(eerh, detid.layer());
     double energy = eerh->energy() * m_Calibr_ADC2GeV_EE;
     double time = eerh->time();
+    sumCaloEnergy += energy;
 
      std::cout << "HGC EE rechit cell " << detid.cell() << ", sector " << detid.sector() 
      	      << ", subsector " << detid.subsector() << ", layer " << detid.layer() << ", z " << detid.zside() 
@@ -1282,6 +1287,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     const HGCHEDetId& detid = hefrh->id();
     double energy = hefrh->energy() * m_Calibr_ADC2GeV_HEF;
     double time = hefrh->time();
+    sumCaloEnergy += energy;
 
     // std::cout << "HGC HEF rechit cell " << detid.cell() << ", sector " << detid.sector() 
     // 	      << ", subsector " << detid.subsector() << ", layer " << detid.layer() << ", z " << detid.zside() 
@@ -1401,6 +1407,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     const HGCHEDetId& detid = hebrh->id();
     double energy = hebrh->energy() * m_Calibr_ADC2GeV_HEB;
     double time = hebrh->time();
+    sumCaloEnergy += energy;
 
      std::cout << "HGC HEB rechit cell " << detid.cell() << ", sector " << detid.sector() 
      	      << ", subsector " << detid.subsector() << ", layer " << detid.layer() << ", z " << detid.zside() 
@@ -1508,6 +1515,8 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     nCaloHitsHEB++ ; 
     // std::cout << "BMD: This calo hit has been created" << std::endl ;   
   }
+
+  h_sumCaloE->Fill(sumCaloEnergy);
 
   std::cout << "prepareHits HGC summary: " << std::endl ; 
   std::cout << "HGC Calo Hits               : " << nCaloHitsEE << " (HGC EE) " 
@@ -1809,6 +1818,7 @@ void runPandora::beginJob()
   Egenpart = new TH1F("TH1GenParticlesEnergy","Energy of Generated Particles",1000,0.,1000.);
   Energy_res = new TH1F("TH1RES","#Delta E / E ",100,-2.,2.);
 
+  h_sumCaloE = new TH1F("sumCaloE","sum hit E in Calos",1000,0,100);
   h_sumPfoE = new TH1F("hsumPfoE","sumPFOenergy",1000,0.,1000.);
   h_nbPFOs = new TH1F("hnbPfos","nb of rec PFOs",30,0.,30.);
   h2_hcalEecalE = new TH2F("hcalEecalE","",400,0,400,400,0,400);
