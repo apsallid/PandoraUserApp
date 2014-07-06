@@ -53,10 +53,9 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "DQMServices/Core/interface/MonitorElement.h"
 
-//#include "PFCal/runPandora/interface/steerManager.h"
-
 #include <TH1.h>
 #include <TFile.h>
+#include <TTree.h>
 
 //
 // class declaration
@@ -94,7 +93,6 @@ public:
         float & absorberCorrection
         );
 
-
 private:
   virtual void beginJob() override;
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
@@ -117,6 +115,10 @@ private:
   edm::InputTag    inputTagGenParticles_;
   std::vector<edm::InputTag>  inputTagGeneralTracks_;
   TFile * file;
+  TTree *mytree;
+  double ene_match,mass_match,pid_match,pT_match,charge_match;
+  double ene_true,mass_true,pid_true,pT_true,charge_true;
+
   TH1F * Epfos;
   TH1F * Egenpart;
   TH1F * Energy_res;
@@ -124,43 +126,39 @@ private:
   TH1F * h_sumPfoE;
   TH1F * h_nbPFOs;
 
-  TH1F * h_sumCaloE;
-
   TH2F * h2_hcalEecalE;
 
+  float m_Calibr_ADC2GeV_EE ;
+  float m_Calibr_ADC2GeV_HEF ;
+  float m_Calibr_ADC2GeV_HEB ;
 
-  float m_Calibr_ADC2GeV_EE     ;
-  float m_Calibr_ADC2GeV_HEF    ;
-  float m_Calibr_ADC2GeV_HEB    ;
-
-  float m_hCalMipThresBarrel    ;
+  float m_hCalMipThresBarrel ;
   float m_hCalMipThresEndCapHEF ;
   float m_hCalMipThresEndCapHEB ;
-  float m_eCalMipThresBarrel    ;
-  float m_eCalMipThresEndCap    ;
+  float m_eCalMipThresBarrel ;
+  float m_eCalMipThresEndCap ;
 
-  float m_eCalToMipEndCap       ;
-  float m_eCalToMipBarrel       ;
-  float m_hCalToMipEndCapHEF    ;
-  float m_hCalToMipEndCapHEB    ;
-  float m_hCalToMipBarrel       ;
+  float m_eCalToMipEndCap ;
+  float m_eCalToMipBarrel ;
+  float m_hCalToMipEndCapHEF ;
+  float m_hCalToMipEndCapHEB ;
+  float m_hCalToMipBarrel ;
 
-  float m_eCalToEMGeVEndCap     ;
-  float m_eCalToEMGeVBarrel     ;
-  float m_hCalToEMGeVEndCapHEF  ;
-  float m_hCalToEMGeVEndCapHEB  ;
-  float m_hCalToEMGeVBarrel     ;
+  float m_eCalToEMGeVEndCap ;
+  float m_eCalToEMGeVBarrel ;
+  float m_hCalToEMGeVEndCapHEF ;
+  float m_hCalToEMGeVEndCapHEB ;
+  float m_hCalToEMGeVBarrel ;
 
-  float m_eCalToHadGeVEndCap    ;
-  float m_eCalToHadGeVBarrel    ;
+  float m_eCalToHadGeVEndCap ;
+  float m_eCalToHadGeVBarrel ;
   float m_hCalToHadGeVEndCapHEF ;
   float m_hCalToHadGeVEndCapHEB ;
-  float m_hCalToHadGeVBarrel    ;
+  float m_hCalToHadGeVBarrel ;
 
-  float m_muonToMip             ;
+  float m_muonToMip ;
 
   bool firstEvent_ ; 
-
 };
 
 //
