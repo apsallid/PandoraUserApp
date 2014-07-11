@@ -8,23 +8,22 @@ Calibr_ADC2GeV_HEB 0.0003746
 #Calibr_ADC2GeV_HEB 0.0003108
 
 
-#additional calibration
-addCalibrEE 43.
-addCalibrHEF 10.
-addCalibrHEB 10.
-
-# #threshold in GeV -- increase a little bit
-ECalThresEndCap 27.75e-6
-HCalThresEndCapHEF 42.70e-6
-HCalThresEndCapHEB 760.2e-6
-ECalThresBarrel 0.
-HCalThresBarrel 0.
 # #threshold in GeV
-#2adc ECalThresEndCap 27.55e-6
-#2adc HCalThresEndCapHEF 42.50e-6
-#2adc HCalThresEndCapHEB 742.2e-6
-#2adc ECalThresBarrel 0.
-#2adc HCalThresBarrel 0.
+# cut a bit higher, since default values are exactly at 0.5mip
+# and Calibr_ADC2GeV_xx already rounded ...
+ECalThresEndCap 27.65e-6
+HCalThresEndCapHEF 42.60e-6
+HCalThresEndCapHEB 750.3e-6
+ECalThresBarrel 10000.
+HCalThresBarrel 10000.
+
+
+# ok # #threshold in GeV
+# ok ECalThresEndCap 27.55e-6
+# ok HCalThresEndCapHEF 42.50e-6
+# ok HCalThresEndCapHEB 742.2e-6
+# ok ECalThresBarrel 0.
+# ok HCalThresBarrel 0.
 
 # #threshold in GeV
 #ECalThresEndCap 0.

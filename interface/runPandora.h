@@ -53,6 +53,8 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "DQMServices/Core/interface/MonitorElement.h"
 
+//#include "PFCal/runPandora/interface/steerManager.h"
+
 #include <TH1.h>
 #include <TFile.h>
 #include <TTree.h>
@@ -83,15 +85,27 @@ public:
   TrackingParticleRefVector getTpSiblings(TrackingParticleRef tp);
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
+  std::string _outputFileName;
   std::string     m_pandoraSettingsXmlFile;
 
   std::string     m_calibrationParameterFile;
   void initPandoraCalibrParameters();
   void readCalibrParameterFile();
-  void getLayerProperties (const HGCRecHit *eerh, int layer,
+  void getLayerPropertiesEE (const HGCRecHit *eerh, int layer,
         float & nCellInteractionLengths, float & nCellRadiationLengths,
-        float & absorberCorrection
+        float & absorberCorrectionEM, float & absorberCorrectionHAD
         );
+  void getLayerPropertiesHEF (const HGCRecHit *eerh, int layer,
+        float & nCellInteractionLengths, float & nCellRadiationLengths,
+        float & absorberCorrectionEM, float & absorberCorrectionHAD
+        );
+  void getLayerPropertiesHEB (const HGCRecHit *eerh, int layer,
+        float & nCellInteractionLengths, float & nCellRadiationLengths,
+        float & absorberCorrectionEM, float & absorberCorrectionHAD
+        );
+
+
+
 
 private:
   virtual void beginJob() override;
@@ -124,41 +138,72 @@ private:
   TH1F * Energy_res;
 
   TH1F * h_sumPfoE;
+  TH1F * h_sumPfoEEM;
+  TH1F * h_sumPfoEHad;
   TH1F * h_nbPFOs;
 
-  TH2F * h2_hcalEecalE;
+  TH1F * h_sumCaloE;
+  TH1F * h_sumCaloEM;
+  TH1F * h_sumCaloHad;
+  TH1F * h_MIP_EE ;
+  TH1F * h_MIP_HEF;
+  TH1F * h_MIP_HEB;
+  TH1F * h_MIP_Corr_EE ;
+  TH1F * h_MIP_Corr_HEF;
+  TH1F * h_MIP_Corr_HEB;
 
-  float m_Calibr_ADC2GeV_EE ;
-  float m_Calibr_ADC2GeV_HEF ;
-  float m_Calibr_ADC2GeV_HEB ;
 
-  float m_hCalMipThresBarrel ;
+  TH2F * h2_Calo_EM_hcalEecalE;
+  TH2F * h2_Calo_Had_hcalEecalE;
+
+  TH2F * h2_EM_hcalEecalE;
+  TH2F * h2_Had_hcalEecalE;
+
+
+
+  float m_Calibr_ADC2GeV_EE     ;
+  float m_Calibr_ADC2GeV_HEF    ;
+  float m_Calibr_ADC2GeV_HEB    ;
+
+  float m_addCalibrEE ;
+  float m_addCalibrHEF;
+  float m_addCalibrHEB;
+
+  float m_hCalThresBarrel       ;
+  float m_hCalThresEndCapHEF    ;
+  float m_hCalThresEndCapHEB    ;
+  float m_eCalThresBarrel       ;
+  float m_eCalThresEndCap       ;
+
+  float m_hCalMipThresBarrel    ;
   float m_hCalMipThresEndCapHEF ;
   float m_hCalMipThresEndCapHEB ;
-  float m_eCalMipThresBarrel ;
-  float m_eCalMipThresEndCap ;
+  float m_eCalMipThresBarrel    ;
+  float m_eCalMipThresEndCap    ;
 
-  float m_eCalToMipEndCap ;
-  float m_eCalToMipBarrel ;
-  float m_hCalToMipEndCapHEF ;
-  float m_hCalToMipEndCapHEB ;
-  float m_hCalToMipBarrel ;
+  float m_eCalToMipEndCap       ;
+  float m_eCalToMipBarrel       ;
+  float m_hCalToMipEndCapHEF    ;
+  float m_hCalToMipEndCapHEB    ;
+  float m_hCalToMipBarrel       ;
 
-  float m_eCalToEMGeVEndCap ;
-  float m_eCalToEMGeVBarrel ;
-  float m_hCalToEMGeVEndCapHEF ;
-  float m_hCalToEMGeVEndCapHEB ;
-  float m_hCalToEMGeVBarrel ;
+  float m_eCalToEMGeVEndCap     ;
+  float m_eCalToEMGeVBarrel     ;
+  float m_hCalToEMGeVEndCapHEF  ;
+  float m_hCalToEMGeVEndCapHEB  ;
+  float m_hCalToEMGeVBarrel     ;
 
-  float m_eCalToHadGeVEndCap ;
-  float m_eCalToHadGeVBarrel ;
+  float m_eCalToHadGeVEndCap    ;
+  float m_eCalToHadGeVBarrel    ;
   float m_hCalToHadGeVEndCapHEF ;
   float m_hCalToHadGeVEndCapHEB ;
-  float m_hCalToHadGeVBarrel ;
+  float m_hCalToHadGeVBarrel    ;
 
-  float m_muonToMip ;
+  float m_muonToMip             ;
 
   bool firstEvent_ ; 
+  short _debugLevel;
+
 };
 
 //
