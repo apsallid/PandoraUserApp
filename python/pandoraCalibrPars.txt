@@ -9,9 +9,14 @@ Calibr_ADC2GeV_HEB 0.0003746
 
 
 #additional calibration
-addCalibrEE 43.
-addCalibrHEF 10.
-addCalibrHEB 10.
+EMaddCalibrEE 48.
+EMaddCalibrHEF 10.
+EMaddCalibrHEB 10.
+
+HADaddCalibrEE 52.9083
+HADaddCalibrHEF 33.91
+HADaddCalibrHEB 33.91
+
 
 # #threshold in GeV -- increase a little bit
 ECalThresEndCap 27.75e-6
@@ -43,8 +48,8 @@ HCalThresBarrel 0.
 ECalMipThresEndCap 0.5
 HCalMipThresEndCapHEF 0.5
 HCalMipThresEndCapHEB 0.5
-ECalMipThresBarrel 0.5
-HCalMipThresBarrel 0.5
+ECalMipThresBarrel 10.
+HCalMipThresBarrel 10.
 
 # mip calibration -----------
 ECalToMipEndCap 18148.82
