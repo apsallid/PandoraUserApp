@@ -56,7 +56,10 @@
 
 using namespace edm;
 using namespace reco;
-  
+using namespace pandora;  
+
+enum { D_HGCEE, D_HGCHEF, D_HGCHEB };
+enum { EM, HAD };
 
 pandora::Pandora * runPandora::m_pPandora = NULL;
 //
@@ -66,6 +69,8 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
 {
   //now do what ever initialization is needed
   m_pPandora = new pandora::Pandora();
+
+  stm = new steerManager("energyWeight.txt");
  
   inputTagEcalRecHitsEB_ = iConfig.getParameter<InputTag>("ecalRecHitsEB");
   inputTagHcalRecHitsHBHE_ = iConfig.getParameter<InputTag>("hcalRecHitsHBHE");
@@ -78,6 +83,8 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
   m_pandoraSettingsXmlFile = iConfig.getParameter<std::string>("inputconfigfile");
 
   m_calibrationParameterFile = iConfig.getParameter<std::string>("calibrParFile");
+  m_energyCorrMethod = iConfig.getParameter<std::string>("energyCorrMethod");
+  m_energyWeightingFilename  = iConfig.getParameter<std::string>("energyWeightFile");
   _outputFileName = iConfig.getParameter<std::string>("outputFile");
 
   
@@ -97,6 +104,9 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
 runPandora::~runPandora()
 {
  
+
+   delete stm;
+
    // do anything here that needs to be done at desctruction time
    // (e.g. close files, deallocate resources etc.)
 
@@ -110,6 +120,8 @@ runPandora::~runPandora()
 // ------------ method called for each event  ------------
 void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+
+   resetVariables();
 
   std::cout << "Analyzing events" << std::endl ; 
   if ( firstEvent_ ) { 
@@ -167,8 +179,9 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
   } 
 
   prepareTrack(B_,pRecoToSim,iEvent,iSetup);
-  prepareHits( ecalRecHitHandleEB,hcalRecHitHandleHBHE,HGCeeRecHitHandle,HGChefRecHitHandle,HGChebRecHitHandle,pv,iEvent,iSetup );
   preparemcParticle(genpart);
+  prepareHits( ecalRecHitHandleEB,hcalRecHitHandleHBHE,HGCeeRecHitHandle,HGChefRecHitHandle,HGChebRecHitHandle,pv,iEvent,iSetup );
+  //preparemcParticle(genpart); //put before prepareHits() to have mc info, for mip calib check
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::ProcessEvent(*m_pPandora));
   preparePFO(iEvent,iSetup);
   PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=,PandoraApi::Reset(*m_pPandora));
@@ -177,6 +190,8 @@ void runPandora::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 
 void runPandora::initPandoraCalibrParameters()
 {
+   m_firstMCpartEta = -99999.;
+   m_firstMCpartPhi = -99999.;
 
    m_Calibr_ADC2GeV_EE  = 0.000012 ; //w/o absorber thickness correction
    m_Calibr_ADC2GeV_HEF = 0.0000176; //w/o absorber thickness correction
@@ -245,7 +260,7 @@ void runPandora::readCalibrParameterFile()
       if (linebuf.empty()) continue;
 
       std::string paraName;
-      float paraValue;
+      double paraValue;
       std::stringstream ss(linebuf);
       ss >> paraName >> paraValue;
       std::cout << "reading calibr parameter " << paraName << " ";
@@ -254,12 +269,12 @@ void runPandora::readCalibrParameterFile()
       if (paraName=="Calibr_ADC2GeV_HEF"    ) {m_Calibr_ADC2GeV_HEF      = paraValue; std::cout <<  m_Calibr_ADC2GeV_HEF    << std::endl;}
       if (paraName=="Calibr_ADC2GeV_HEB"    ) {m_Calibr_ADC2GeV_HEB      = paraValue; std::cout <<  m_Calibr_ADC2GeV_HEB    << std::endl;}
 
-      if (paraName=="EMaddCalibrEE"     ) {m_EM_addCalibrEE  = paraValue; std::cout <<  m_EM_addCalibrEE  << std::endl;}
-      if (paraName=="EMaddCalibrHEF"    ) {m_EM_addCalibrHEF = paraValue; std::cout <<  m_EM_addCalibrHEF << std::endl;}
-      if (paraName=="EMaddCalibrHEB"    ) {m_EM_addCalibrHEB = paraValue; std::cout <<  m_EM_addCalibrHEB << std::endl;}
-      if (paraName=="HADaddCalibrEE"    ) {m_HAD_addCalibrEE = paraValue; std::cout <<  m_HAD_addCalibrEE << std::endl;}
-      if (paraName=="HADaddCalibrHEF"   ) {m_HAD_addCalibrHEF= paraValue; std::cout <<  m_HAD_addCalibrHEF<< std::endl;}
-      if (paraName=="HADaddCalibrHEB"   ) {m_HAD_addCalibrHEB= paraValue; std::cout <<  m_HAD_addCalibrHEB<< std::endl;}
+      if (paraName=="EMaddCalibrEE"         ) {m_EM_addCalibrEE          = paraValue; std::cout <<  m_EM_addCalibrEE        << std::endl;}
+      if (paraName=="EMaddCalibrHEF"        ) {m_EM_addCalibrHEF         = paraValue; std::cout <<  m_EM_addCalibrHEF       << std::endl;}
+      if (paraName=="EMaddCalibrHEB"        ) {m_EM_addCalibrHEB         = paraValue; std::cout <<  m_EM_addCalibrHEB       << std::endl;}
+      if (paraName=="HADaddCalibrEE"        ) {m_HAD_addCalibrEE         = paraValue; std::cout <<  m_HAD_addCalibrEE       << std::endl;}
+      if (paraName=="HADaddCalibrHEF"       ) {m_HAD_addCalibrHEF        = paraValue; std::cout <<  m_HAD_addCalibrHEF      << std::endl;}
+      if (paraName=="HADaddCalibrHEB"       ) {m_HAD_addCalibrHEB        = paraValue; std::cout <<  m_HAD_addCalibrHEB      << std::endl;}
 
 
       if (paraName=="ECalThresBarrel"       ) {m_eCalThresBarrel         = paraValue; std::cout <<  m_eCalThresBarrel       << std::endl;}
@@ -297,6 +312,46 @@ void runPandora::readCalibrParameterFile()
    }
 
    calibrParFile.close();
+
+   return;
+}
+
+
+void runPandora::readEnergyWeight()
+{
+   std::cout << "runPandora::readEnergyWeight" << std::endl;
+
+   //FIXME : for the moment, everything is given in unit of MIP
+
+   stm->addArrayParameter("layerSet_EE");
+   stm->addArrayParameter("layerSet_HEF");
+   stm->addArrayParameter("layerSet_HEB");
+   stm->addArrayParameter("energyWeight_EM_EE");
+   stm->addArrayParameter("energyWeight_EM_HEF");
+   stm->addArrayParameter("energyWeight_EM_HEB");
+   stm->addArrayParameter("energyWeight_Had_EE");
+   stm->addArrayParameter("energyWeight_Had_HEF");
+   stm->addArrayParameter("energyWeight_Had_HEB");
+   
+   stm->addSingleParameter("offSet_EM");
+   stm->addSingleParameter("offSet_Had");
+
+   stm->read();
+   stm->printPars();
+
+   offSet_EM  = stm->getSinglePara("offSet_EM");
+   offSet_Had = stm->getSinglePara("offSet_Had");
+
+   //notneeded layerSet_EE          = stm->getArrayPara("layerSet_EE");
+   //notneeded layerSet_HEF         = stm->getArrayPara("layerSet_HEF");
+   //notneeded layerSet_HEB         = stm->getArrayPara("layerSet_HEB");
+   //notneeded energyWeight_EM_EE   = stm->getArrayPara("energyWeight_EM_EE");
+   //notneeded energyWeight_EM_HEF  = stm->getArrayPara("energyWeight_EM_HEF");
+   //notneeded energyWeight_EM_HEB  = stm->getArrayPara("energyWeight_EM_HEB");
+   //notneeded energyWeight_Had_EE  = stm->getArrayPara("energyWeight_Had_EE");
+   //notneeded energyWeight_Had_HEF = stm->getArrayPara("energyWeight_Had_HEF");
+   //notneeded energyWeight_Had_HEB = stm->getArrayPara("energyWeight_Had_HEB");
+
 
    return;
 }
@@ -791,6 +846,7 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
       // std::cout << "charge " << charge << std::endl;
       trackParameters.m_charge = charge;
       //Associate the reconstructed Track (in the Tracker) with the corresponding MC true simulated particle
+      trackParameters.m_particleId = 211; // INITIALIZATION // NS
 
       edm::RefToBase<reco::Track> tr(tkRefCollection, i);
       std::vector<std::pair<TrackingParticleRef, double> > tp;
@@ -803,7 +859,6 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
       }
       
 
-      trackParameters.m_particleId = 211; // INITIALIZATION // NS
 
       //So the pdg code of the track is 
       if(pRecoToSim.find(tr) != pRecoToSim.end()) {
@@ -869,7 +924,7 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
 
       //For the ECAL entrance
       // Starting from outermost hit position of the track and propagating to ECAL Entrance
-      float pfoutenergy = track->outerMomentum().Mag2();
+      double pfoutenergy = track->outerMomentum().Mag2();
 
       //the input BaseParticlePropagator needs to be cm and GeV
       BaseParticlePropagator theOutParticle = BaseParticlePropagator( RawParticle(XYZTLorentzVector(track->outerMomentum().x(),
@@ -920,7 +975,7 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
       
       } else { 
 	trackParameters.m_trackStateAtCalorimeter = trackParameters.m_trackStateAtEnd.Get();
-	trackParameters.m_timeAtCalorimeter = std::numeric_limits<float>::max();
+	trackParameters.m_timeAtCalorimeter = std::numeric_limits<double>::max();
       }
 
       trackParameters.m_isProjectedToEndCap = isonendcap; 
@@ -982,8 +1037,6 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   double sumCaloHCALEnergyEM  = 0.;
   double sumCaloECALEnergyHAD= 0.;
   double sumCaloHCALEnergyHAD = 0.;
-
-
 
   // 
   // Process ECAL barrel rechits 
@@ -1220,10 +1273,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     //energy *= m_EM_addCalibrEE; //this must be after threshold rejection
     double time = eerh->time();
 
-    float nCellInteractionLengths = 0.;
-    float nCellRadiationLengths = 0.;
-    float absorberCorrectionEM = 1.;
-    float absorberCorrectionHAD = 1.;
+    double nCellInteractionLengths = 0.;
+    double nCellRadiationLengths = 0.;
+    double absorberCorrectionEM = 1.;
+    double absorberCorrectionHAD = 1.;
     getLayerPropertiesEE(eerh, detid.layer(),
           nCellInteractionLengths, nCellRadiationLengths,
           absorberCorrectionEM, absorberCorrectionHAD);
@@ -1311,16 +1364,38 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     caloHitParameters.m_hitType = pandora::ECAL;
     caloHitParameters.m_detectorRegion = pandora::ENDCAP;
     caloHitParameters.m_inputEnergy = energy;
-    caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * absorberCorrectionEM * m_EM_addCalibrEE; 
+    if (m_energyCorrMethod == "ABSCORR")
+       caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * absorberCorrectionEM * m_EM_addCalibrEE; 
+    else if (m_energyCorrMethod == "WEIGHTING") {
+       //std::cout << "ENERGY CORR: WEIGHTING" << std::endl;
+       //int x_layer = caloHitParameters.m_layer.Get()+1;
+
+       //std::cout << "11111111111111111111111111111111" << std::endl;
+       //double erjcorr =  getEnergyWeight(D_HGCEE, x_layer, EM);
+       //std::cout << "22222222222222222222222222222222" << std::endl;
+       //caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * erjcorr; 
+       caloHitParameters.m_electromagneticEnergy = m_eCalToEMGeVEndCap * energy * getEnergyWeight(D_HGCEE, detid.layer(), EM) * m_eCalToMipEndCap; 
+    }
     caloHitParameters.m_mipEquivalentEnergy =   m_eCalToMipEndCap   * energy; // = energy; // HTAN 0 NS AP  
     
-    float angleCorrectionMIP(1.);
-    float hitR = distToFrontFace; 
-    float hitZ = zf;
+    double angleCorrectionMIP(1.);
+    double hitR = distToFrontFace; 
+    double hitZ = zf;
     angleCorrectionMIP = hitR/hitZ;
-    h_MIP_EE -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
-    h_MIP_Corr_EE -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
 
+    //---choose hits with eta-phi close to init. mc particle
+    TVector3 hit3v(xf,yf,zf);
+    double hitEta = hit3v.PseudoRapidity();
+    double hitPhi = hit3v.Phi();
+    h_hit_Eta -> Fill(hitEta);
+    h_hit_Phi -> Fill(hitPhi);
+    //std::cout << "TEST: m_firstMCpartEta = " << m_firstMCpartEta
+    //   << ", hitEta = " << hitEta << std::endl;
+    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
+          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.05) {
+       h_MIP_EE -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
+       h_MIP_Corr_EE -> Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
+    }
     if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_eCalMipThresEndCap) {
        //std::cout << "EE MIP threshold rejected" << std::endl;
        continue;
@@ -1333,7 +1408,11 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
 
 
+    if (m_energyCorrMethod == "ABSCORR")
     caloHitParameters.m_hadronicEnergy = m_eCalToHadGeVEndCap * energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
+    else if (m_energyCorrMethod == "WEIGHTING")
+       caloHitParameters.m_hadronicEnergy = m_eCalToHadGeVEndCap * energy * getEnergyWeight(D_HGCEE, detid.layer(), HAD) * m_eCalToMipEndCap; 
+
     caloHitParameters.m_layer = detid.layer() ;//PFLayer::ECAL_BARREL;
     caloHitParameters.m_nCellRadiationLengths = nCellRadiationLengths; // 6.;
     caloHitParameters.m_nCellInteractionLengths = nCellInteractionLengths; // 6.;
@@ -1355,7 +1434,14 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     
 
     // std::cout << "Processing HGC EE rec hit with position (in cm) " << x << " " << y << " " << z << std::endl ; 
+
+    m_hitEperLayer_EM [caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
+    m_hitEperLayer_HAD[caloHitParameters.m_layer.Get()] += caloHitParameters.m_hadronicEnergy.Get();
+    //std::cout << "HEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE" << std::endl;
+    //std::cout << "EM ENERGY: " << caloHitParameters.m_electromagneticEnergy.Get()
+    //   << std::endl;
     
+    m_hitEperLayer_EM_EE [caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
     nCaloHitsEE++ ; 
      //std::cout << "BMD: This calo hit has been created" << std::endl ;   
@@ -1376,10 +1462,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     //energy *= m_addCalibrHEF;
     double time = hefrh->time();
 
-    float nCellInteractionLengths = 0.;
-    float nCellRadiationLengths = 0.;
-    float absorberCorrectionEM = 1.;
-    float absorberCorrectionHAD = 1.;
+    double nCellInteractionLengths = 0.;
+    double nCellRadiationLengths = 0.;
+    double absorberCorrectionEM = 1.;
+    double absorberCorrectionHAD = 1.;
     getLayerPropertiesHEF(hefrh, detid.layer(),
       nCellInteractionLengths, nCellRadiationLengths,
       absorberCorrectionEM, absorberCorrectionHAD);
@@ -1463,15 +1549,27 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     caloHitParameters.m_hitType = pandora::HCAL;
     caloHitParameters.m_detectorRegion = pandora::ENDCAP;
     caloHitParameters.m_inputEnergy = energy;
-    caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEF * energy * m_EM_addCalibrHEF; 
+    if (m_energyCorrMethod == "ABSCORR")
+       caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEF * energy * m_EM_addCalibrHEF; 
+    else if (m_energyCorrMethod == "WEIGHTING")
+       caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEF * energy * getEnergyWeight(D_HGCHEF, detid.layer(), EM); 
+
     caloHitParameters.m_mipEquivalentEnergy =  m_hCalToMipEndCapHEF * energy; // = energy; // HTAN 0 NS AP  
 
-    h_MIP_HEF->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
-    float angleCorrectionMIP(1.);
-    float hitR = distToFrontFace; 
-    float hitZ = zf;
-    angleCorrectionMIP = hitR/hitZ;
-    h_MIP_Corr_HEF->Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
+    //---choose hits with eta-phi close to init. mc particle
+    TVector3 hit3v(xf,yf,zf);
+    double hitEta = hit3v.PseudoRapidity();
+    double hitPhi = hit3v.Phi();
+    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
+          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.05) {
+
+       h_MIP_HEF->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
+       double angleCorrectionMIP(1.);
+       double hitR = distToFrontFace; 
+       double hitZ = zf;
+       angleCorrectionMIP = hitR/hitZ;
+       h_MIP_Corr_HEF->Fill(caloHitParameters.m_mipEquivalentEnergy.Get()*angleCorrectionMIP);
+    }
 
     if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_hCalMipThresEndCapHEF) {
        //std::cout << "HEF MIP threshold rejected" << std::endl;
@@ -1485,10 +1583,14 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
 
 
+    if (m_energyCorrMethod == "ABSCORR")
     caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEF * energy * m_HAD_addCalibrHEF; // = energy; 
+    else if (m_energyCorrMethod == "WEIGHTING")
+    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEF * energy * getEnergyWeight(D_HGCHEF, detid.layer(), HAD) * m_hCalToMipEndCapHEF;
+
     caloHitParameters.m_layer = detid.layer() ;
-    caloHitParameters.m_nCellRadiationLengths = 0.0; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = 0.0; // 6.;
+    caloHitParameters.m_nCellRadiationLengths = nCellRadiationLengths; // 6.;
+    caloHitParameters.m_nCellInteractionLengths = nCellInteractionLengths; // 6.;
     caloHitParameters.m_isDigital = false;
     caloHitParameters.m_isInOuterSamplingLayer = false;
     caloHitParameters.m_pParentAddress = (void *) hefrh;
@@ -1501,7 +1603,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     
 
     // std::cout << "Processing HGC HEF rec hit with position (in cm) " << x << " " << y << " " << z << std::endl ; 
-    
+    m_hitEperLayer_EM [caloHitParameters.m_layer.Get()+31] += caloHitParameters.m_electromagneticEnergy.Get();
+    m_hitEperLayer_HAD[caloHitParameters.m_layer.Get()+31] += caloHitParameters.m_hadronicEnergy.Get();
+    m_hitEperLayer_EM_HEF[caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
+  
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
 
     // std::cout << "BMD: This calo hit has been created" << std::endl ;   
@@ -1521,10 +1626,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     if (energy<m_hCalThresEndCapHEB) continue;
     //energy *= m_addCalibrHEB;
     double time = hebrh->time();
-    float nCellInteractionLengths = 0.;
-    float nCellRadiationLengths = 0.;
-    float absorberCorrectionEM = 1.;
-    float absorberCorrectionHAD = 1.;
+    double nCellInteractionLengths = 0.;
+    double nCellRadiationLengths = 0.;
+    double absorberCorrectionEM = 1.;
+    double absorberCorrectionHAD = 1.;
     getLayerPropertiesHEB(hebrh, detid.layer(),
       nCellInteractionLengths, nCellRadiationLengths,
       absorberCorrectionEM, absorberCorrectionHAD);
@@ -1609,9 +1714,21 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     caloHitParameters.m_hitType = pandora::HCAL;
     caloHitParameters.m_detectorRegion = pandora::ENDCAP;
     caloHitParameters.m_inputEnergy = energy;
+    if (m_energyCorrMethod == "ABSCORR")
     caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEB * energy * m_EM_addCalibrHEB; 
+    else if (m_energyCorrMethod == "WEIGHTING")
+    caloHitParameters.m_electromagneticEnergy = m_hCalToEMGeVEndCapHEB * energy * getEnergyWeight(D_HGCHEB, detid.layer(), EM) * m_hCalToMipEndCapHEB; 
     caloHitParameters.m_mipEquivalentEnergy = m_hCalToMipEndCapHEB * energy ; /// m_addCalibrHEB; // = energy; // HTAN 0 NS AP  
+
+    //---choose hits with eta-phi close to init. mc particle
+    TVector3 hit3v(xf,yf,zf);
+    double hitEta = hit3v.PseudoRapidity();
+    double hitPhi = hit3v.Phi();
+    if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
+          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.05) {
+
     h_MIP_HEB->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
+    }
     if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_hCalMipThresEndCapHEB) {
        //std::cout << "HEB MIP threshold rejected" << std::endl;
        continue;
@@ -1623,10 +1740,14 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEB;
 
 
+    if (m_energyCorrMethod == "ABSCORR")
     caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEB * energy * m_HAD_addCalibrHEB; // = energy; 
-    caloHitParameters.m_layer = 31 + detid.layer();//PFLayer::ECAL_BARREL;
-    caloHitParameters.m_nCellRadiationLengths = 0.0; // 6.;
-    caloHitParameters.m_nCellInteractionLengths = 0.0; // 6.;
+    else if (m_energyCorrMethod == "WEIGHTING")
+    caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEB * energy * getEnergyWeight(D_HGCHEB, detid.layer(), HAD) * m_hCalToMipEndCapHEB;
+    //caloHitParameters.m_layer = 31 + detid.layer();//PFLayer::ECAL_BARREL;
+    caloHitParameters.m_layer = detid.layer();//PFLayer::ECAL_BARREL;
+    caloHitParameters.m_nCellRadiationLengths = nCellRadiationLengths; // 6.;
+    caloHitParameters.m_nCellInteractionLengths = nCellInteractionLengths; // 6.;
     caloHitParameters.m_isDigital = false;
     caloHitParameters.m_isInOuterSamplingLayer = false;
     caloHitParameters.m_pParentAddress = (void *) hebrh;
@@ -1639,7 +1760,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     
 
     // std::cout << "Processing HGC HEB rec hit with position (in cm) " << x << " " << y << " " << z << std::endl ; 
-    
+    m_hitEperLayer_EM [caloHitParameters.m_layer.Get()+31+12] += caloHitParameters.m_electromagneticEnergy.Get();
+    m_hitEperLayer_HAD[caloHitParameters.m_layer.Get()+31+12] += caloHitParameters.m_hadronicEnergy.Get();
+    m_hitEperLayer_EM_HEB[caloHitParameters.m_layer.Get()] += caloHitParameters.m_electromagneticEnergy.Get();
+  
     PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::CaloHit::Create(*m_pPandora, caloHitParameters)); 
 
     nCaloHitsHEB++ ; 
@@ -1657,6 +1781,16 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
   h_sumEcalEHad->Fill(sumCaloECALEnergyHAD);
   h_sumHcalEHad->Fill(sumCaloHCALEnergyHAD);
+
+  for (int ilay=0; ilay<100; ilay++) {
+     int ibin = ilay+1;
+     h_hitEperLayer_EM->SetBinContent(ibin,m_hitEperLayer_EM[ilay]+ h_hitEperLayer_EM->GetBinContent(ibin));
+     h_hitEperLayer_HAD->SetBinContent(ibin,m_hitEperLayer_HAD[ilay]+ h_hitEperLayer_HAD->GetBinContent(ibin));
+
+     h_hitEperLayer_EM_EE ->SetBinContent(ibin,m_hitEperLayer_EM_EE [ilay]+ h_hitEperLayer_EM_EE ->GetBinContent(ibin));
+     h_hitEperLayer_EM_HEF->SetBinContent(ibin,m_hitEperLayer_EM_HEF[ilay]+ h_hitEperLayer_EM_HEF->GetBinContent(ibin));
+     h_hitEperLayer_EM_HEB->SetBinContent(ibin,m_hitEperLayer_EM_HEB[ilay]+ h_hitEperLayer_EM_HEB->GetBinContent(ibin));
+  }
 
 
 
@@ -1685,6 +1819,14 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
   //    pandora::InputAddress           m_pParentAddress;           ///< Address of the parent MC particle in the user framework
   //};
   // for(std::vector<reco::GenParticle>::const_iterator cP = genpart->begin();  cP != genpart->end(); cP++ ) {
+
+   const GenParticle * firstMCp = &(*genpart)[0];
+   if (firstMCp) {
+      m_firstMCpartEta = firstMCp->eta();
+      m_firstMCpartPhi = firstMCp->phi();
+   }
+   h_MCp_Eta->Fill(m_firstMCpartEta);
+   h_MCp_Phi->Fill(m_firstMCpartPhi);
   
   for(size_t i = 0; i < genpart->size(); ++ i) {
     const GenParticle * pa = &(*genpart)[i];
@@ -1696,7 +1838,7 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
     // Definition of the enpoint depends on the application that created the particle, e.g. the start point of the shower in a calorimeter. 
     // If the particle was not created as a result of a continuous process where the parent particle continues, i.e.
     // hard ionization, Bremsstrahlung, elastic interactions, etc. then the vertex of the daughter particle is the endpoint.
-    parameters.m_endpoint = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //IS THIS CORRECT?!
+    parameters.m_endpoint = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //IS THIS CORRECT?! //NO, should be where it starts to decay
     parameters.m_particleId = pa->pdgId();
     parameters.m_pParentAddress = (void*) pa;
     if( abs(pa->pdgId()) == 211 ){Egenpart->Fill( pa->energy() ); }; //AP NS // 11 electrons, 13 muons, 211 pions 
@@ -1707,6 +1849,10 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
     // HepMC::GenParticle * theParticle = new HepMC::GenParticle(HepMC::FourVector(0.,0.,0.,0.),12,1);
     size_t n = pa->numberOfDaughters();
     //std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << " and " << n << " daughters " <<  std::endl;
+
+    //Bool_t MCEndpointFound = kFALSE;
+    //if (n
+
     for(size_t j = 0; j < n; ++ j) {
       const Candidate * d = pa->daughter( j );
       //if we want to keep it also in GenParticle uncomment here
@@ -1796,13 +1942,58 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
       pid_match    = 0;
       pT_match     = 0;
       charge_match = 0;
+      ene_match_em  = -1;
+      ene_match_had = -1;
+      ene_match_track = -1;
  
       for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){ // 4
         double charge = (*itPFO)->GetCharge() ;
-        double energy = (*itPFO)->GetEnergy() ;
+        double energy = (*itPFO)->GetEnergy();
+        double pid    = (*itPFO)->GetParticleId();
+
+        //FIXME
+        //NOTYET TLorentzVector Pfo4vec(0.,0.,0.,0.);
+        //NOTYET if (m_energyCorrMethod == "WEIGHTING") {
+        //NOTYET    if (pid == 22)
+        //NOTYET       energy += 2.095/18148.82;
+        //NOTYET    Pfo4vec.SetPxPyPzE(((*itPFO)->GetMomentum()).GetX(),
+        //NOTYET          ((*itPFO)->GetMomentum()).GetY(),
+        //NOTYET          ((*itPFO)->GetMomentum()).GetZ(),
+        //NOTYET          energy);
+        //NOTYET }
+
         double mass   = (*itPFO)->GetMass() ;
         double pT     = sqrt(((*itPFO)->GetMomentum()).GetX()*((*itPFO)->GetMomentum()).GetX()+((*itPFO)->GetMomentum()).GetY()*((*itPFO)->GetMomentum()).GetY()) ; // EDW GetX
-        double pid    = (*itPFO)->GetParticleId();
+        //if (m_energyCorrMethod == "WEIGHTING") {
+        //   mass = Pfo4vec.M();
+        //}
+
+        const ClusterList &clusterList((*itPFO)->GetClusterList());
+        std::cout << " size of cluster list " << clusterList.size() << std::endl;
+        ClusterVector clusterVector(clusterList.begin(), clusterList.end());
+
+     for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end();
+        clusterIter != clusterIterEnd; ++clusterIter)
+     {
+        Cluster *pCluster = (*clusterIter);
+        ene_em  = pCluster->GetElectromagneticEnergy();
+        ene_had = pCluster->GetHadronicEnergy();
+     }
+//edw
+        const TrackList &trackList((*itPFO)->GetTrackList());
+        std::cout << " size of track list " << trackList.size() << std::endl;
+        TrackVector trackVector(trackList.begin(), trackList.end());
+
+     for (TrackVector::const_iterator trackIter = trackVector.begin(), trackIterEnd = trackVector.end();
+        trackIter != trackIterEnd; ++trackIter)
+    {
+        pandora::Track *pPandoraTrack = (*trackIter);
+        // Extract pandora track states
+        const TrackState &trackState(pPandoraTrack->GetTrackStateAtStart());
+        const CartesianVector &momentum(trackState.GetMomentum());
+        ene_track = momentum.GetMagnitude();
+    }
+
         double diff = 1e10;
         if(charge_true == charge && energy != found_energy){
           diff = abs(energy-ene_true);
@@ -1813,6 +2004,9 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
            charge_match = charge;
            pT_match     = pT;
            pid_match    = pid;
+           ene_match_em  = ene_em;
+           ene_match_had = ene_had;
+           ene_match_track = ene_track;
           } // 3
         }
       } // 4
@@ -1829,7 +2023,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
  } // 1
 
   std::cout << "Starting reading PFOs" << std::endl;
-  float _sumPFOEnergy(0.);
+  double _sumPFOEnergy(0.);
   double sumClustEMEcalE(0.); //PFO cluster energy in Ecal
   double sumClustEMHcalE(0.); //PFO cluster energy in Hcal
   double sumClustHADEcalE(0.); //PFO cluster energy in Ecal
@@ -1876,10 +2070,10 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
 
          const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
          //const HGCEEDetId& detidEE = hgcHit->id();
-         float nCellInteractionLengths = 0.;
-         float nCellRadiationLengths = 0.;
-         float absorberCorrectionEM = 1.;
-         float absorberCorrectionHAD = 1.;
+         double nCellInteractionLengths = 0.;
+         double nCellRadiationLengths = 0.;
+         double absorberCorrectionEM = 1.;
+         double absorberCorrectionHAD = 1.;
 
          const DetId& detid = hgcHit->id();
          if (!detid)
@@ -1891,19 +2085,40 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
          //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
          if (thesubdet == 3) {
             int layer = (int) ((HGCEEDetId)(detid)).layer() ;
-            getLayerPropertiesEE(hgcHit, layer,
-                  nCellInteractionLengths, nCellRadiationLengths,
-                  absorberCorrectionEM, absorberCorrectionHAD);
-            sumClustEMEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionEM * m_EM_addCalibrEE;
-            sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionHAD * m_HAD_addCalibrEE;
+            if (m_energyCorrMethod=="ABSCORR") {
+               getLayerPropertiesEE(hgcHit, layer,
+                     nCellInteractionLengths, nCellRadiationLengths,
+                     absorberCorrectionEM, absorberCorrectionHAD);
+               sumClustEMEcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionEM * m_EM_addCalibrEE;
+               sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionHAD * m_HAD_addCalibrEE;
+            }
+            else if (m_energyCorrMethod == "WEIGHTING") {
+               sumClustEMEcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer+1, EM) * m_eCalToMipEndCap;
+               sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer+1,HAD) * m_eCalToMipEndCap;
+            }
          }
          else if (thesubdet == 4) {
-            sumClustEMHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF * absorberCorrectionEM * m_EM_addCalibrHEF;
-            sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * absorberCorrectionHAD * m_HAD_addCalibrHEF;
+            int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+            if (m_energyCorrMethod=="ABSCORR") {
+               sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * absorberCorrectionEM  * m_EM_addCalibrHEF ;
+               sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * absorberCorrectionHAD * m_HAD_addCalibrHEF;
+            }
+            else if (m_energyCorrMethod=="WEIGHTING") {
+               sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer+1, EM) * m_hCalToMipEndCapHEF;
+               sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer+1,HAD) * m_hCalToMipEndCapHEF;
+            }
+
          }
          else if (thesubdet == 5) {
-            sumClustEMHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionEM * m_EM_addCalibrHEB;
+           int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+           if (m_energyCorrMethod=="ABSCORR") {
+            sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionEM  * m_EM_addCalibrHEB ;
             sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionHAD * m_HAD_addCalibrHEB;
+           }
+            else if (m_energyCorrMethod=="WEIGHTING") {
+            sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer+1, EM) * m_hCalToMipEndCapHEB;
+            sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer+1,HAD) * m_hCalToMipEndCapHEB;
+            }
          }
          else {
          }
@@ -2034,7 +2249,7 @@ void runPandora::beginJob()
   Energy_res = new TH1F("TH1RES","#Delta E / E ",100,-2.,2.);
 
   h_sumCaloE = new TH1F("sumCaloE","sum hit E in Calos",1000,0,200);
-  h_sumCaloEM = new TH1F("sumCaloEM","sum hit E in Calos",1000,0,200);
+  h_sumCaloEM = new TH1F("sumCaloEM","sum hit E in Calos",1000,0,250);
   h_sumCaloHad = new TH1F("sumCaloHad","sum hit E in Calos",1000,0,200);
   h_sumEcalEEM = new TH1F("sumEcalEEM","sum hit EM E in Ecal",1000,0,200);
   h_sumHcalEEM = new TH1F("sumHcalEEM","sum hit EM E in Hcal",1000,0,200);
@@ -2050,6 +2265,17 @@ void runPandora::beginJob()
 
   h2_EM_hcalEecalE = new TH2F("hcalEecalEem","",1000,0,200,1000,0,200);
   h2_Had_hcalEecalE = new TH2F("hcalEecalEhad","",1000,0,200,400,0,200);
+
+  h_MCp_Eta = new TH1F("MCp_Eta","MCp_Eta",300,-3.5,3.5);
+  h_MCp_Phi = new TH1F("MCp_Phi","MCp_Phi",300,-3.5,3.5);
+  h_hit_Eta = new TH1F("hit_Eta","hit_Eta",300,-3.5,3.5);
+  h_hit_Phi = new TH1F("hit_Phi","hit_Phi",300,-3.5,3.5);
+
+  h_hitEperLayer_EM  = new TH1F("hitEperLayer_EM" ,"sum hit E per layer",100,-0.5,99.5);
+  h_hitEperLayer_HAD = new TH1F("hitEperLayer_HAD","sum hit E per layer",100,-0.5,99.5);
+  h_hitEperLayer_EM_EE  = new TH1F("hitEperLayer_EM_EE"  ,"sum hit E per layer EE",100,-0.5,99.5);
+  h_hitEperLayer_EM_HEF = new TH1F("hitEperLayer_EM_HEF" ,"sum hit E per layer HEF",100,-0.5,99.5);
+  h_hitEperLayer_EM_HEB = new TH1F("hitEperLayer_EM_HEB" ,"sum hit E per layer HEB",100,-0.5,99.5);
 
   h_MIP_EE  = new TH1F("MIPEE" ,"Mip in EE ",1000,0,10);
   h_MIP_HEF = new TH1F("MIPHEF","Mip in HEF",1000,0,10);
@@ -2067,6 +2293,9 @@ void runPandora::beginJob()
   mytree->Branch("charge_true",&charge_true);
   mytree->Branch("pid_true",&pid_true);
   mytree->Branch("ene_match",&ene_match);
+  mytree->Branch("ene_match_em",&ene_match_em);
+  mytree->Branch("ene_match_had",&ene_match_had);
+  mytree->Branch("ene_match_track",&ene_match_track);
   mytree->Branch("mass_match",&mass_match);
   mytree->Branch("pT_match",&pT_match);
   mytree->Branch("charge_match",&charge_match);
@@ -2077,28 +2306,36 @@ void runPandora::beginJob()
   // read in calibration parameters
   initPandoraCalibrParameters();
   readCalibrParameterFile();
+  if (m_energyCorrMethod == "WEIGHTING")
+     readEnergyWeight();
 
+  m_hitEperLayer_EM  = new double[100];
+  m_hitEperLayer_HAD = new double[100];
+
+  m_hitEperLayer_EM_EE  = new double[100];
+  m_hitEperLayer_EM_HEF = new double[100];
+  m_hitEperLayer_EM_HEB = new double[100];
 
 }
 
 
 void runPandora::getLayerPropertiesEE (const HGCRecHit *eerh, int layer,
-      float & nCellInteractionLengths, float & nCellRadiationLengths,
-      float & absorberCorrectionEM, float & absorberCorrectionHAD
+      double & nCellInteractionLengths, double & nCellRadiationLengths,
+      double & absorberCorrectionEM, double & absorberCorrectionHAD
       )
 {
-   float absorberThickness_Pb[3] = { 1.6, 3.3, 5.6}; //mm
-   float absorberThickness_Cu[3] = { 3. , 3. , 3. }; //mm
+   double absorberThickness_Pb[3] = { 1.6, 3.3, 5.6}; //mm
+   double absorberThickness_Cu[3] = { 3. , 3. , 3. }; //mm
 
-   float absorberRadLength_Pb   = 0.561 * 10; //mm
-   float absorberRadLength_Cu   = 1.436 * 10; //mm
+   double absorberRadLength_Pb   = 0.561 * 10; //mm
+   double absorberRadLength_Cu   = 1.436 * 10; //mm
 
-   float absorberIntLength_Pb = 17.59 * 10; //mm
-   float absorberIntLength_Cu = 15.32 * 10; //mm
+   double absorberIntLength_Pb = 17.59 * 10; //mm
+   double absorberIntLength_Cu = 15.32 * 10; //mm
 
-   float firstLayerCu = 3.0; //mm
-   float firstLayerX0   = firstLayerCu / absorberRadLength_Cu;
-   float firstLayerLdaI = firstLayerCu / absorberIntLength_Cu;
+   double firstLayerCu = 3.0; //mm
+   double firstLayerX0   = firstLayerCu / absorberRadLength_Cu;
+   double firstLayerLdaI = firstLayerCu / absorberIntLength_Cu;
 
    int layerSet = 0;
    if ( 2 <= layer && layer <= 11 ) layerSet = 0;
@@ -2107,11 +2344,11 @@ void runPandora::getLayerPropertiesEE (const HGCRecHit *eerh, int layer,
    else {
       //std::cout << "OOUPSSSSSSSSSSSSSS, unknown layer!!!!" << std::endl;
       return;
-   }
+   } //if layer == 1 then take predefined values (should be 1 & 0)
 
-   float thisLayerX0 = absorberThickness_Pb[layerSet] / absorberRadLength_Pb
+   double thisLayerX0 = absorberThickness_Pb[layerSet] / absorberRadLength_Pb
       + absorberThickness_Cu[layerSet] / absorberRadLength_Cu;
-   float thisLayerLdaI = absorberThickness_Pb[layerSet] / absorberIntLength_Pb
+   double thisLayerLdaI = absorberThickness_Pb[layerSet] / absorberIntLength_Pb
       + absorberThickness_Cu[layerSet] / absorberIntLength_Cu;
 
    absorberCorrectionEM  = thisLayerX0   / firstLayerX0  ;
@@ -2123,21 +2360,94 @@ void runPandora::getLayerPropertiesEE (const HGCRecHit *eerh, int layer,
    return;
 }
 void runPandora::getLayerPropertiesHEF (const HGCRecHit *eerh, int layer,
-      float & nCellInteractionLengths, float & nCellRadiationLengths,
-      float & absorberCorrectionEM, float & absorberCorrectionHAD
+      double & nCellInteractionLengths, double & nCellRadiationLengths,
+      double & absorberCorrectionEM, double & absorberCorrectionHAD
       )
 {
+   double absorberRadLength_Cu = 1.436 * 10; //mm
+   double absorberIntLength_Cu = 15.32 * 10; //mm
+
+   double absorberRadLength_Br = 0.561 * 10; //lead instead, Valeri's mail, 16/7/2014
+   double absorberIntLength_Br = 17.59 * 10; //FIXME v5; v4 of geometry: may change to Brass
+
+   double absorberThickness_Cu = 3.  ; //mm
+   double absorberThickness_Br = 52. ; //mm
+
+   double layerX0 = absorberThickness_Cu / absorberRadLength_Cu
+      + absorberThickness_Br / absorberRadLength_Br;
+   double layerLdaI = absorberThickness_Cu / absorberIntLength_Cu
+      + absorberThickness_Br / absorberIntLength_Br;
+
+
+   nCellInteractionLengths = layerLdaI;
+   nCellRadiationLengths   = layerX0  ;
 
    return;
 }
 void runPandora::getLayerPropertiesHEB (const HGCRecHit *eerh, int layer,
-      float & nCellInteractionLengths, float & nCellRadiationLengths,
-      float & absorberCorrectionEM, float & absorberCorrectionHAD
+      double & nCellInteractionLengths, double & nCellRadiationLengths,
+      double & absorberCorrectionEM, double & absorberCorrectionHAD
       )
 {
+   double absorberThickness_Br = 34.5 + 9; //mm
+
+   double absorberRadLength_Br = 0.561 * 10;
+   double absorberIntLength_Br = 17.59 * 10;
+
+   double layerX0   = absorberThickness_Br / absorberRadLength_Br;
+   double layerLdaI = absorberThickness_Br / absorberIntLength_Br;
+
+   nCellInteractionLengths = layerLdaI;
+   nCellRadiationLengths   = layerX0  ;
 
    return;
 }
+
+/*****************************************************************************/ 
+double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
+{
+   double weight = 1.;
+
+   //std::cout << "runPandora::getEnergyWeight: "
+   //   << ", subDet: " << subDet << ", layer: " << layer
+   //   << "showerType: " << showerType
+   //   << std::endl;
+
+   if (showerType == EM)
+      switch (subDet) {
+         case D_HGCEE :
+            weight = stm->getCorrectionAtPoint(layer,"layerSet_EE","energyWeight_EM_EE");
+            break;
+         case D_HGCHEF:
+            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEF","energyWeight_EM_HEF");
+            break;
+         case D_HGCHEB:
+            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEB","energyWeight_EM_HEB");
+            break;
+         default :
+            break;
+      }
+   else 
+      switch (subDet) {
+         case D_HGCEE :
+            weight = stm->getCorrectionAtPoint(layer,"layerSet_EE","energyWeight_Had_EE");
+            break;
+         case D_HGCHEF:
+            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEF","energyWeight_Had_HEF");
+            break;
+         case D_HGCHEB:
+            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEB","energyWeight_Had_HEB");
+            break;
+         default :
+            break;
+      }
+
+   //std::cout << "weight: " << weight << std::endl;
+  
+   return weight;
+}
+
+
 // ------------ method called once each job just after ending the event loop  ------------
 void 
 runPandora::endJob() 

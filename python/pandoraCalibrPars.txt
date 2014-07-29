@@ -14,8 +14,8 @@ EMaddCalibrHEF 10.
 EMaddCalibrHEB 10.
 
 HADaddCalibrEE 52.9083
-HADaddCalibrHEF 33.91
-HADaddCalibrHEB 33.91
+HADaddCalibrHEF 339.1
+HADaddCalibrHEB 339.1
 
 
 # #threshold in GeV -- increase a little bit

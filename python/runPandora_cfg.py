@@ -29,15 +29,15 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:upgradePLS3', '')
 # process.GlobalTag.globaltag = 'START70_V1::All'
 
-process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
-#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10) )
+#process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
+process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(5) )
 
 #process.EveService = cms.Service("EveService")
 
 process.source = cms.Source("PoolSource",
     fileNames = cms.untracked.vstring(
 #        'file:/afs/cern.ch/work/t/trtran/slc5/testAbsCorr/CMSSW_6_2_0_SLHC14/sim/kaon0L/first/step3.root'
-        'file:/afs/cern.ch/work/t/trtran/slc5/testAbsCorr/CMSSW_6_2_0_SLHC14/sim/gamma/eta2/Pt35/100.0/step3.root'
+        'file:/afs/cern.ch/work/t/trtran/slc5/testAbsCorr/CMSSW_6_2_0_SLHC14/sim/gamma/eta2/Pt35/1000/1000.0/step3.root'
 #        'file:/afs/cern.ch/work/t/trtran/slc5/detidfix/CMSSW_6_2_0_SLHC14/SIM/first/step3.root'
 #        'file:/afs/cern.ch/work/t/trtran/slc5/testAbsCorr/CMSSW_6_2_0_SLHC14/sim/muon/eta1.5-3/first/step3.root'
     )
@@ -58,7 +58,12 @@ process.pandorapfanew = cms.EDAnalyzer('runPandora',
 #    inputconfigfile = cms.string('PandoraSettingsBasic_WithoutMonitoring.xml'),
 #    inputconfigfile = cms.string('PandoraSettingsMuon.xml'),
 
-    calibrParFile = cms.string('pandoraCalibrPars.test.txt'),
+#    energyCorrMethod = cms.string('ABSCORR'),
+#absorber thickness correction
+    energyCorrMethod = cms.string('WEIGHTING'),
+    energyWeightFile = cms.string('energyWeight.txt'),
+
+    calibrParFile = cms.string('pandoraCalibrPars.txt'),
     outputFile = cms.string('pandoraoutput.root')
 )
 

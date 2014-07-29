@@ -34,6 +34,10 @@
 #include "Api/PandoraApi.h"
 #include "TLorentzVector.h"
 #include "Objects/ParticleFlowObject.h"
+#include "Pandora/PandoraInputTypes.h"
+#include "Pandora/PandoraInternal.h"
+#include "Objects/Cluster.h"
+#include "Objects/Track.h"
 
 #include "DataFormats/EcalRecHit/interface/EcalRecHit.h"
 #include "DataFormats/EcalRecHit/interface/EcalRecHitCollections.h"
@@ -53,7 +57,7 @@
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "DQMServices/Core/interface/MonitorElement.h"
 
-//#include "PFCal/runPandora/interface/steerManager.h"
+#include "PFCal/runPandora/interface/steerManager.h"
 
 #include <TH1.h>
 #include <TFile.h>
@@ -86,31 +90,51 @@ public:
   TrackingParticleRefVector getTpDaughters(TrackingParticleRef tp);
 
   std::string _outputFileName;
-  std::string     m_pandoraSettingsXmlFile;
+  std::string m_pandoraSettingsXmlFile;
 
-  std::string     m_calibrationParameterFile;
+  std::string m_calibrationParameterFile;
+  std::string m_energyWeightingFilename;
+
+  std::string m_energyCorrMethod; //energy correction method
+
+
   void initPandoraCalibrParameters();
   void readCalibrParameterFile();
+  void readEnergyWeight(); //FIXME part of calibration, to be merged to readCalibrParameterFile??
   void getLayerPropertiesEE (const HGCRecHit *eerh, int layer,
-        float & nCellInteractionLengths, float & nCellRadiationLengths,
-        float & absorberCorrectionEM, float & absorberCorrectionHAD
+        double & nCellInteractionLengths, double & nCellRadiationLengths,
+        double & absorberCorrectionEM, double & absorberCorrectionHAD
         );
   void getLayerPropertiesHEF (const HGCRecHit *eerh, int layer,
-        float & nCellInteractionLengths, float & nCellRadiationLengths,
-        float & absorberCorrectionEM, float & absorberCorrectionHAD
+        double & nCellInteractionLengths, double & nCellRadiationLengths,
+        double & absorberCorrectionEM, double & absorberCorrectionHAD
         );
   void getLayerPropertiesHEB (const HGCRecHit *eerh, int layer,
-        float & nCellInteractionLengths, float & nCellRadiationLengths,
-        float & absorberCorrectionEM, float & absorberCorrectionHAD
+        double & nCellInteractionLengths, double & nCellRadiationLengths,
+        double & absorberCorrectionEM, double & absorberCorrectionHAD
         );
 
 
+  virtual double getEnergyWeight(int subDet, int layer, int showerType);
 
 
 private:
   virtual void beginJob() override;
   virtual void analyze(const edm::Event&, const edm::EventSetup&) override;
   virtual void endJob() override;
+
+  virtual void resetVariables() {
+     for (int il=0; il<100; il++) {
+        m_hitEperLayer_EM [il] = 0.;
+        m_hitEperLayer_HAD[il] = 0.;
+
+        m_hitEperLayer_EM_EE [il] = 0.;
+        m_hitEperLayer_EM_HEF[il] = 0.;
+        m_hitEperLayer_EM_HEB[il] = 0.;
+     }
+  };
+
+  steerManager * stm;
 
   //virtual void beginRun(edm::Run const&, edm::EventSetup const&) override;
   //virtual void endRun(edm::Run const&, edm::EventSetup const&) override;
@@ -130,7 +154,7 @@ private:
   std::vector<edm::InputTag>  inputTagGeneralTracks_;
   TFile * file;
   TTree *mytree;
-  double ene_match,mass_match,pid_match,pT_match,charge_match;
+  double ene_track, ene_match_track,ene_match_em,ene_match_had, ene_had,ene_em,ene_match,mass_match,pid_match,pT_match,charge_match;
   double ene_true,mass_true,pid_true,pT_true,charge_true;
 
   TH1F * Epfos;
@@ -157,6 +181,22 @@ private:
   TH1F * h_MIP_Corr_EE ;
   TH1F * h_MIP_Corr_HEF;
   TH1F * h_MIP_Corr_HEB;
+  TH1F * h_MCp_Eta;
+  TH1F * h_MCp_Phi;
+  TH1F * h_hit_Eta;
+  TH1F * h_hit_Phi;
+
+  TH1F * h_hitEperLayer_EM ;
+  TH1F * h_hitEperLayer_HAD;
+  double * m_hitEperLayer_EM ;
+  double * m_hitEperLayer_HAD;
+
+  TH1F * h_hitEperLayer_EM_EE ;
+  TH1F * h_hitEperLayer_EM_HEF;
+  TH1F * h_hitEperLayer_EM_HEB;
+  double * m_hitEperLayer_EM_EE ;
+  double * m_hitEperLayer_EM_HEF;
+  double * m_hitEperLayer_EM_HEB;
 
 
   TH2F * h2_Calo_EM_hcalEecalE;
@@ -167,48 +207,66 @@ private:
 
 
 
-  float m_Calibr_ADC2GeV_EE     ;
-  float m_Calibr_ADC2GeV_HEF    ;
-  float m_Calibr_ADC2GeV_HEB    ;
+  //-------------- energy weighting ------------------
+  double * layerSet_EE ;
+  double * layerSet_HEF;
+  double * layerSet_HEB;
+  double * energyWeight_EM_EE ;
+  double * energyWeight_EM_HEF;
+  double * energyWeight_EM_HEB;
+  double * energyWeight_Had_EE ;
+  double * energyWeight_Had_HEF;
+  double * energyWeight_Had_HEB;
+  double  offSet_EM;
+  double  offSet_Had;
 
-  float m_EM_addCalibrEE ;
-  float m_EM_addCalibrHEF;
-  float m_EM_addCalibrHEB;
-  float m_HAD_addCalibrEE ;
-  float m_HAD_addCalibrHEF;
-  float m_HAD_addCalibrHEB;
 
-  float m_hCalThresBarrel       ;
-  float m_hCalThresEndCapHEF    ;
-  float m_hCalThresEndCapHEB    ;
-  float m_eCalThresBarrel       ;
-  float m_eCalThresEndCap       ;
 
-  float m_hCalMipThresBarrel    ;
-  float m_hCalMipThresEndCapHEF ;
-  float m_hCalMipThresEndCapHEB ;
-  float m_eCalMipThresBarrel    ;
-  float m_eCalMipThresEndCap    ;
+  double m_firstMCpartEta;
+  double m_firstMCpartPhi;
 
-  float m_eCalToMipEndCap       ;
-  float m_eCalToMipBarrel       ;
-  float m_hCalToMipEndCapHEF    ;
-  float m_hCalToMipEndCapHEB    ;
-  float m_hCalToMipBarrel       ;
+  double m_Calibr_ADC2GeV_EE     ;
+  double m_Calibr_ADC2GeV_HEF    ;
+  double m_Calibr_ADC2GeV_HEB    ;
 
-  float m_eCalToEMGeVEndCap     ;
-  float m_eCalToEMGeVBarrel     ;
-  float m_hCalToEMGeVEndCapHEF  ;
-  float m_hCalToEMGeVEndCapHEB  ;
-  float m_hCalToEMGeVBarrel     ;
+  double m_EM_addCalibrEE ;
+  double m_EM_addCalibrHEF;
+  double m_EM_addCalibrHEB;
+  double m_HAD_addCalibrEE ;
+  double m_HAD_addCalibrHEF;
+  double m_HAD_addCalibrHEB;
 
-  float m_eCalToHadGeVEndCap    ;
-  float m_eCalToHadGeVBarrel    ;
-  float m_hCalToHadGeVEndCapHEF ;
-  float m_hCalToHadGeVEndCapHEB ;
-  float m_hCalToHadGeVBarrel    ;
+  double m_hCalThresBarrel       ;
+  double m_hCalThresEndCapHEF    ;
+  double m_hCalThresEndCapHEB    ;
+  double m_eCalThresBarrel       ;
+  double m_eCalThresEndCap       ;
 
-  float m_muonToMip             ;
+  double m_hCalMipThresBarrel    ;
+  double m_hCalMipThresEndCapHEF ;
+  double m_hCalMipThresEndCapHEB ;
+  double m_eCalMipThresBarrel    ;
+  double m_eCalMipThresEndCap    ;
+
+  double m_eCalToMipEndCap       ;
+  double m_eCalToMipBarrel       ;
+  double m_hCalToMipEndCapHEF    ;
+  double m_hCalToMipEndCapHEB    ;
+  double m_hCalToMipBarrel       ;
+
+  double m_eCalToEMGeVEndCap     ;
+  double m_eCalToEMGeVBarrel     ;
+  double m_hCalToEMGeVEndCapHEF  ;
+  double m_hCalToEMGeVEndCapHEB  ;
+  double m_hCalToEMGeVBarrel     ;
+
+  double m_eCalToHadGeVEndCap    ;
+  double m_eCalToHadGeVBarrel    ;
+  double m_hCalToHadGeVEndCapHEF ;
+  double m_hCalToHadGeVEndCapHEB ;
+  double m_hCalToHadGeVBarrel    ;
+
+  double m_muonToMip             ;
 
   bool firstEvent_ ; 
   short _debugLevel;
