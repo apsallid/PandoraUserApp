@@ -1,6 +1,10 @@
-Calibr_ADC2GeV_EE  1.3775e-05
-Calibr_ADC2GeV_HEF 2.125e-05
-Calibr_ADC2GeV_HEB 0.0003746
+Calibr_ADC2GeV_EE  1.
+Calibr_ADC2GeV_HEF 1.
+Calibr_ADC2GeV_HEB 1.
+#Calibr_ADC2GeV_EE  1.3775e-05
+#Calibr_ADC2GeV_HEF 2.125e-05
+#Calibr_ADC2GeV_HEB 0.0003746
+
 
 ##wrong 0.45 mip
 #Calibr_ADC2GeV_EE 0.000012
@@ -9,9 +13,9 @@ Calibr_ADC2GeV_HEB 0.0003746
 
 
 #additional calibration
-EMaddCalibrEE 48.
-EMaddCalibrHEF 10.
-EMaddCalibrHEB 10.
+EMaddCalibrEE 46.1
+EMaddCalibrHEF 1.
+EMaddCalibrHEB 1.
 
 HADaddCalibrEE 52.9083
 HADaddCalibrHEF 339.1

@@ -175,6 +175,11 @@ private:
 
   TH1F * h_sumCaloEM;
   TH1F * h_sumCaloHad;
+
+  TH1F * h_simDir_sumCaloEM ;//take only hits in sim part. direction
+  TH1F * h_simDir_sumCaloHad;//take only hits in sim part. direction
+
+
   TH1F * h_MIP_EE ;
   TH1F * h_MIP_HEF;
   TH1F * h_MIP_HEB;
@@ -224,6 +229,9 @@ private:
 
   double m_firstMCpartEta;
   double m_firstMCpartPhi;
+  double m_secondMCpartEta;
+  double m_secondMCpartPhi;
+
 
   double m_Calibr_ADC2GeV_EE     ;
   double m_Calibr_ADC2GeV_HEF    ;

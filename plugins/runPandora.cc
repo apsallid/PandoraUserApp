@@ -192,6 +192,9 @@ void runPandora::initPandoraCalibrParameters()
 {
    m_firstMCpartEta = -99999.;
    m_firstMCpartPhi = -99999.;
+   m_secondMCpartEta = -99999.;
+   m_secondMCpartPhi = -99999.;
+
 
    m_Calibr_ADC2GeV_EE  = 0.000012 ; //w/o absorber thickness correction
    m_Calibr_ADC2GeV_HEF = 0.0000176; //w/o absorber thickness correction
@@ -975,7 +978,8 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
       
       } else { 
 	trackParameters.m_trackStateAtCalorimeter = trackParameters.m_trackStateAtEnd.Get();
-	trackParameters.m_timeAtCalorimeter = std::numeric_limits<double>::max();
+	//trackParameters.m_timeAtCalorimeter = std::numeric_limits<double>::max();
+	trackParameters.m_timeAtCalorimeter = 999999999.;
       }
 
       trackParameters.m_isProjectedToEndCap = isonendcap; 
@@ -1002,6 +1006,8 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
       // std::cout <<  track->d0() << std::endl;
       // std::cout <<  track->dz() << std::endl;
       // std::cout <<  pfrt->pdgCode() << std::endl;
+
+
  
        PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::Track::Create(*m_pPandora, trackParameters));
     }
@@ -1032,6 +1038,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   double sumCaloEnergy = 0.;
   double sumCaloEnergyEM = 0.;
   double sumCaloEnergyHAD = 0.;
+
+  double simDir_sumCaloEnergyEM = 0.;
+  double simDir_sumCaloEnergyHAD = 0.;
+
 
   double sumCaloECALEnergyEM = 0.;
   double sumCaloHCALEnergyEM  = 0.;
@@ -1403,6 +1413,20 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloEnergy    += energy;
     sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrEE;
     sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
+//    if ( ( std::fabs(hitEta-m_firstMCpartEta) < 0.5
+//             || std::fabs(hitEta+m_firstMCpartEta) < 0.5 )
+//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
+    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
+          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
+          ||
+          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
+           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
+       )
+    {
+       simDir_sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrEE;
+       simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrEE;
+    }
+
     sumCaloECALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrEE;
     sumCaloECALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrEE;
 
@@ -1578,6 +1602,19 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloEnergy += energy;
     sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
     sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEF;
+//    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.5
+//             || std::fabs(hitEta+m_firstMCpartEta) < 0.5 )
+//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
+    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
+          && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
+          ||
+          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
+           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
+       )
+    {
+       simDir_sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEF;
+       simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEF;
+    }
     sumCaloHCALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrHEF;
     sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEF;
 
@@ -1736,6 +1773,20 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloEnergy += energy;
     sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
     sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEB;
+//    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.5
+//          || std::fabs(hitEta-m_firstMCpartEta) < 0.5 )
+//          && std::fabs(hitPhi-m_firstMCpartPhi)< 0.5) 
+    if ( (std::fabs(hitEta-m_firstMCpartEta) < 0.2
+             && std::fabs(hitPhi-m_firstMCpartPhi) < 0.2)
+          ||
+          (std::fabs(hitEta-m_secondMCpartEta) < 0.2
+           && std::fabs(hitPhi-m_secondMCpartPhi) < 0.2)
+       )   
+    {
+       simDir_sumCaloEnergyEM  += energy * absorberCorrectionEM * m_EM_addCalibrHEB;
+       simDir_sumCaloEnergyHAD += energy * absorberCorrectionHAD * m_HAD_addCalibrHEB;
+    }
+
     sumCaloHCALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrHEB;
     sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEB;
 
@@ -1773,6 +1824,9 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   h_sumCaloE->Fill(sumCaloEnergy);
   h_sumCaloEM->Fill(sumCaloEnergyEM);
   h_sumCaloHad->Fill(sumCaloEnergyHAD);
+  h_simDir_sumCaloEM ->Fill(simDir_sumCaloEnergyEM );
+  h_simDir_sumCaloHad->Fill(simDir_sumCaloEnergyHAD);
+
 
   h2_Calo_EM_hcalEecalE->Fill(sumCaloECALEnergyEM, sumCaloHCALEnergyEM);
   h2_Calo_Had_hcalEecalE->Fill(sumCaloECALEnergyHAD, sumCaloHCALEnergyHAD);
@@ -1825,6 +1879,14 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
       m_firstMCpartEta = firstMCp->eta();
       m_firstMCpartPhi = firstMCp->phi();
    }
+   if (genpart->size()>=2) {
+      const GenParticle * secondMCp = &(*genpart)[1];
+      if (secondMCp) {
+         m_secondMCpartEta = secondMCp->eta();
+         m_secondMCpartPhi = secondMCp->phi();
+      }
+   }
+
    h_MCp_Eta->Fill(m_firstMCpartEta);
    h_MCp_Phi->Fill(m_firstMCpartPhi);
   
@@ -2093,8 +2155,8 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
                sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionHAD * m_HAD_addCalibrEE;
             }
             else if (m_energyCorrMethod == "WEIGHTING") {
-               sumClustEMEcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer+1, EM) * m_eCalToMipEndCap;
-               sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer+1,HAD) * m_eCalToMipEndCap;
+               sumClustEMEcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer, EM) * m_eCalToMipEndCap;
+               sumClustHADEcalE += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer,HAD) * m_eCalToMipEndCap;
             }
          }
          else if (thesubdet == 4) {
@@ -2104,8 +2166,8 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
                sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * absorberCorrectionHAD * m_HAD_addCalibrHEF;
             }
             else if (m_energyCorrMethod=="WEIGHTING") {
-               sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer+1, EM) * m_hCalToMipEndCapHEF;
-               sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer+1,HAD) * m_hCalToMipEndCapHEF;
+               sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer, EM) * m_hCalToMipEndCapHEF;
+               sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer,HAD) * m_hCalToMipEndCapHEF;
             }
 
          }
@@ -2116,8 +2178,8 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
             sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionHAD * m_HAD_addCalibrHEB;
            }
             else if (m_energyCorrMethod=="WEIGHTING") {
-            sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer+1, EM) * m_hCalToMipEndCapHEB;
-            sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer+1,HAD) * m_hCalToMipEndCapHEB;
+            sumClustEMHcalE  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer, EM) * m_hCalToMipEndCapHEB;
+            sumClustHADHcalE += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer,HAD) * m_hCalToMipEndCapHEB;
             }
          }
          else {
@@ -2251,6 +2313,10 @@ void runPandora::beginJob()
   h_sumCaloE = new TH1F("sumCaloE","sum hit E in Calos",1000,0,200);
   h_sumCaloEM = new TH1F("sumCaloEM","sum hit E in Calos",1000,0,250);
   h_sumCaloHad = new TH1F("sumCaloHad","sum hit E in Calos",1000,0,200);
+  h_simDir_sumCaloEM  = new TH1F("sumCaloEMsimDir","sum hit E in Calos",1000,0,250);
+  h_simDir_sumCaloHad = new TH1F("sumCaloHadsimDir","sum hit E in Calos",1000,0,250);
+
+
   h_sumEcalEEM = new TH1F("sumEcalEEM","sum hit EM E in Ecal",1000,0,200);
   h_sumHcalEEM = new TH1F("sumHcalEEM","sum hit EM E in Hcal",1000,0,200);
   h_sumEcalEHad = new TH1F("sumEcalEHad","sum hit Had E in Ecal",1000,0,200);
@@ -2416,13 +2482,13 @@ double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
    if (showerType == EM)
       switch (subDet) {
          case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer,"layerSet_EE","energyWeight_EM_EE");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_EM_EE");
             break;
          case D_HGCHEF:
-            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEF","energyWeight_EM_HEF");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_EM_HEF");
             break;
          case D_HGCHEB:
-            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEB","energyWeight_EM_HEB");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEB","energyWeight_EM_HEB");
             break;
          default :
             break;
@@ -2430,13 +2496,13 @@ double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
    else 
       switch (subDet) {
          case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer,"layerSet_EE","energyWeight_Had_EE");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_Had_EE");
             break;
          case D_HGCHEF:
-            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEF","energyWeight_Had_HEF");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_Had_HEF");
             break;
          case D_HGCHEB:
-            weight = stm->getCorrectionAtPoint(layer,"layerSet_HEB","energyWeight_Had_HEB");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEB","energyWeight_Had_HEB");
             break;
          default :
             break;

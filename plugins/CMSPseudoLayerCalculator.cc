@@ -52,6 +52,7 @@ pandora::PseudoLayer CMSPseudoLayerCalculator::GetPseudoLayer(const pandora::Car
     if ((zCoordinate > m_endCapOuterEdgeZ) || (rCoordinate > std::max(m_barrelOuterEdgeR,m_endcapOuterEdgeR))) {
       std::cout << "You die here because z = " << zCoordinate << " (" << m_endCapOuterEdgeZ << ") and r = " << rCoordinate 
 		<< " (" << m_barrelOuterEdgeR << "," << m_endcapOuterEdgeR << ")" << std::endl; 
+      return 0; // NS FIX temporary <=============!!!!!!!!!!!! 
         throw pandora::StatusCodeException(pandora::STATUS_CODE_NOT_FOUND);
     }
 
