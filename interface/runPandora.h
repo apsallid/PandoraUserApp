@@ -156,6 +156,11 @@ private:
   TTree *mytree;
   double ene_track, ene_match_track,ene_match_em,ene_match_had, ene_had,ene_em,ene_match,mass_match,pid_match,pT_match,charge_match;
   double ene_true,mass_true,pid_true,pT_true,charge_true;
+  int isDecBefCal;
+
+  double RminVtxDaughter[2];
+  double ZminVtxDaughter[2];
+  int isDecayedBeforeCalo[2];
 
   TH1F * Epfos;
   TH1F * Egenpart;

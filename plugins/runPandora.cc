@@ -1889,6 +1889,18 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
 
    h_MCp_Eta->Fill(m_firstMCpartEta);
    h_MCp_Phi->Fill(m_firstMCpartPhi);
+
+
+  RminVtxDaughter[0] = 999999.; //initialise for each event
+  RminVtxDaughter[1] = 999999.; //initialise for each event
+                                //FIXME Attention will crash for one particle sample
+  ZminVtxDaughter[0] = 999999.; //initialise for each event
+  ZminVtxDaughter[1] = 999999.; //initialise for each event
+                                //FIXME Attention will crash for one particle sample
+
+
+  isDecayedBeforeCalo[0] = 0;
+  isDecayedBeforeCalo[1] = 0;
   
   for(size_t i = 0; i < genpart->size(); ++ i) {
     const GenParticle * pa = &(*genpart)[i];
@@ -1896,6 +1908,8 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
     parameters.m_energy = pa->energy();
     parameters.m_momentum = pandora::CartesianVector(pa->px() , pa->py(),  pa->pz() );
     parameters.m_vertex = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //in mm
+
+
     // parameters.m_endpoint = pandora::CartesianVector(position.x(), position.y(), position.z());
     // Definition of the enpoint depends on the application that created the particle, e.g. the start point of the shower in a calorimeter. 
     // If the particle was not created as a result of a continuous process where the parent particle continues, i.e.
@@ -1923,6 +1937,18 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
       bool integercharge = ( ( (int) d->charge() ) - (d->charge()) ) == 0 ? true : false;
       std::cout << "checking integer charge: Real Charge " << d->charge() << " int part " << ( (int) d->charge() ) << " bool " << std::endl;
       da = new GenParticle( d->charge(), d->p4() , d->vertex() , d->pdgId() , d->status() , integercharge); 
+
+
+    double RaVeDa = 10 * std::sqrt(da->vx()*da->vx()+da->vy()*da->vy()+da->vz()*da->vz());
+
+    if (i<2) {
+       if (RminVtxDaughter[i]>RaVeDa)
+          RminVtxDaughter[i] = RaVeDa;
+       if (ZminVtxDaughter[i]>da->vz())
+          ZminVtxDaughter[i] = da->vz();
+    }
+
+
       
       PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetMCParentDaughterRelationship(*m_pPandora, pa , da));
       
@@ -1930,6 +1956,9 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
 
 
   }
+
+  if (ZminVtxDaughter[0] < 3170) isDecayedBeforeCalo[0] = 1;
+  if (ZminVtxDaughter[1] < 3170) isDecayedBeforeCalo[1] = 1;
 
 }
 
@@ -1994,6 +2023,8 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
     pid_true    = pa->pdgId();
     mass_true   = pa->mass();
 
+    isDecBefCal = isDecayedBeforeCalo[i];
+
     if(pa->pdgId()>0) charge_true = 1;
     if(pa->pdgId()<0) charge_true = -1;
     if(pa->pdgId()==22) charge_true = 0;
@@ -2007,8 +2038,11 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
       ene_match_em  = -1;
       ene_match_had = -1;
       ene_match_track = -1;
+
+      int nbPFOs = 0;
  
       for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){ // 4
+         nbPFOs++;
         double charge = (*itPFO)->GetCharge() ;
         double energy = (*itPFO)->GetEnergy();
         double pid    = (*itPFO)->GetParticleId();
@@ -2030,17 +2064,94 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         //   mass = Pfo4vec.M();
         //}
 
-        const ClusterList &clusterList((*itPFO)->GetClusterList());
-        std::cout << " size of cluster list " << clusterList.size() << std::endl;
-        ClusterVector clusterVector(clusterList.begin(), clusterList.end());
+//        const ClusterList &clusterList((*itPFO)->GetClusterList());
+//        std::cout << " size of cluster list " << clusterList.size() << std::endl;
+//        ClusterVector clusterVector(clusterList.begin(), clusterList.end());
+//
+//     for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end();
+//        clusterIter != clusterIterEnd; ++clusterIter)
+//     {
+//        Cluster *pCluster = (*clusterIter);
+//        ene_em  = pCluster->GetElectromagneticEnergy();
+//        ene_had = pCluster->GetHadronicEnergy();
+//     }
 
-     for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end();
-        clusterIter != clusterIterEnd; ++clusterIter)
-     {
-        Cluster *pCluster = (*clusterIter);
-        ene_em  = pCluster->GetElectromagneticEnergy();
-        ene_had = pCluster->GetHadronicEnergy();
-     }
+        //Hieu, 22.08.14
+        //FIXME: for the moment this is a fast fix, should be merged with similar part below
+        //       or simply remove that part (just for a few control histograms)
+        double clusterEMenergy  = 0.;
+        double clusterHADenergy = 0.;
+
+        const pandora::ClusterAddressList clusterAddressList((*itPFO)->GetClusterAddressList());
+        for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end();
+            itCluster != itClusterEnd; ++itCluster)
+        {
+           const unsigned int nHitsInCluster((*itCluster).size());
+
+           for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
+           {
+              const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
+              //const HGCEEDetId& detidEE = hgcHit->id();
+              double nCellInteractionLengths = 0.;
+              double nCellRadiationLengths = 0.;
+              double absorberCorrectionEM = 1.;
+              double absorberCorrectionHAD = 1.;
+
+              const DetId& detid = hgcHit->id();
+              if (!detid)
+                 continue;
+
+              //const HGCHEDetId& detidHE = hgcHit->id();
+
+              ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
+              //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
+              if (thesubdet == 3) {
+                 int layer = (int) ((HGCEEDetId)(detid)).layer() ;
+                 if (m_energyCorrMethod=="ABSCORR") {
+                    getLayerPropertiesEE(hgcHit, layer,
+                          nCellInteractionLengths, nCellRadiationLengths,
+                          absorberCorrectionEM, absorberCorrectionHAD);
+                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionEM * m_EM_addCalibrEE;
+                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * absorberCorrectionHAD * m_HAD_addCalibrEE;
+                 }
+                 else if (m_energyCorrMethod == "WEIGHTING") {
+                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer, EM) * m_eCalToMipEndCap;
+                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_EE * m_eCalToEMGeVEndCap * getEnergyWeight(D_HGCEE, layer,HAD) * m_eCalToMipEndCap;
+                 }
+              }
+              else if (thesubdet == 4) {
+                 int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+                 if (m_energyCorrMethod=="ABSCORR") {
+                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * absorberCorrectionEM  * m_EM_addCalibrHEF ;
+                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * absorberCorrectionHAD * m_HAD_addCalibrHEF;
+                 }
+                 else if (m_energyCorrMethod=="WEIGHTING") {
+                    clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer, EM) * m_hCalToMipEndCapHEF;
+                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer,HAD) * m_hCalToMipEndCapHEF;
+                 }
+
+              }
+              else if (thesubdet == 5) {
+                 int layer = (int) ((HGCHEDetId)(detid)).layer() ;
+                 if (m_energyCorrMethod=="ABSCORR") {
+                    clusterEMenergy  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionEM  * m_EM_addCalibrHEB ;
+                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * absorberCorrectionHAD * m_HAD_addCalibrHEB;
+                 }
+                 else if (m_energyCorrMethod=="WEIGHTING") {
+                    clusterEMenergy  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer, EM) * m_hCalToMipEndCapHEB;
+                    clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer,HAD) * m_hCalToMipEndCapHEB;
+                 }
+              }
+              else {
+              }
+
+           }
+        }
+        ene_em = clusterEMenergy;
+        ene_had = clusterHADenergy;
+
+
+
 //edw
         const TrackList &trackList((*itPFO)->GetTrackList());
         std::cout << " size of track list " << trackList.size() << std::endl;
@@ -2073,7 +2184,9 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
         }
       } // 4
       
-      if(ene_match>0){ // 2
+      if(ene_match>0
+            //&& nbPFOs == 2
+            ){ // 2
        found_energy = ene_match;
        mytree->Fill();
        Energy_res->Fill((ene_match-ene_true)/ene_true);
@@ -2366,6 +2479,7 @@ void runPandora::beginJob()
   mytree->Branch("pT_match",&pT_match);
   mytree->Branch("charge_match",&charge_match);
   mytree->Branch("pid_match",&pid_match);
+  mytree->Branch("isDecBefCal",&isDecBefCal);
   
   TH1::AddDirectory(oldAddDir);
 
@@ -2482,7 +2596,7 @@ double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
    if (showerType == EM)
       switch (subDet) {
          case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_EM_EE");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE" ,"energyWeight_EM_EE" );
             break;
          case D_HGCHEF:
             weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_EM_HEF");
@@ -2496,7 +2610,7 @@ double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
    else 
       switch (subDet) {
          case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_Had_EE");
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE" ,"energyWeight_Had_EE" );
             break;
          case D_HGCHEF:
             weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_Had_HEF");
