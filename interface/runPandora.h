@@ -62,6 +62,7 @@
 #include <TH1.h>
 #include <TFile.h>
 #include <TTree.h>
+#include "TH1F.h"
 
 //
 // class declaration
@@ -152,12 +153,16 @@ private:
   edm::InputTag    inputTagtPRecoTrackAsssociation_;
   edm::InputTag    inputTagGenParticles_;
   std::vector<edm::InputTag>  inputTagGeneralTracks_;
+  //std::vector<std::string> mFileNames;
+
   TFile * file;
   TTree *mytree;
   double ene_track, ene_match_track,ene_match_em,ene_match_had, ene_had,ene_em,ene_match,mass_match,pid_match,pT_match,charge_match;
   double ene_true,mass_true,pid_true,pT_true,charge_true;
-  int isDecBefCal;
+  double first_layer,last_layer,first_layer_match,last_layer_match;
+  int runno, eventno, lumi , nbPFOs;
 
+  int isDecBefCal;
   double RminVtxDaughter[2];
   double ZminVtxDaughter[2];
   int isDecayedBeforeCalo[2];
@@ -175,8 +180,11 @@ private:
   TH1F * h_sumEcalEEM;
   TH1F * h_sumHcalEEM;
   TH1F * h_sumEcalEHad;
+  TH1F * h_sumEcalEHad_unc;
   TH1F * h_sumHcalEHad;
-
+  TH1F * h_sumEcalEHadc;
+  TH1F * h_sumHcalEHadc;
+  TH1F * h_sumEHad;
 
   TH1F * h_sumCaloEM;
   TH1F * h_sumCaloHad;
@@ -293,3 +301,4 @@ private:
 //
 // static data member definitions
 //
+

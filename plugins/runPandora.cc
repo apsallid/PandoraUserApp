@@ -71,7 +71,8 @@ runPandora::runPandora(const edm::ParameterSet& iConfig)
   m_pPandora = new pandora::Pandora();
 
   stm = new steerManager("energyWeight.txt");
- 
+
+  //mFileNames  = iConfig.getParameter<std::vector<std::string> > ("filenames"); 
   inputTagEcalRecHitsEB_ = iConfig.getParameter<InputTag>("ecalRecHitsEB");
   inputTagHcalRecHitsHBHE_ = iConfig.getParameter<InputTag>("hcalRecHitsHBHE");
   inputTagHGCEErechit_ = iConfig.getParameter<InputTag>("HGCEErechitCollection");
@@ -982,6 +983,7 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
 	trackParameters.m_timeAtCalorimeter = 999999999.;
       }
 
+/*
       trackParameters.m_isProjectedToEndCap = isonendcap; 
 
       bool canFormPfo = false; 
@@ -992,6 +994,22 @@ void runPandora::prepareTrack( math::XYZVector B_, const reco::RecoToSimCollecti
 	canFormPfo = true;
 	canFormClusterlessPfo = true;
 	std::cout<< "Yes, this track can form pfo" << std::endl;
+      }
+      trackParameters.m_canFormPfo = canFormPfo;
+      trackParameters.m_canFormClusterlessPfo = canFormClusterlessPfo;
+*/
+
+
+      trackParameters.m_isProjectedToEndCap = isonendcap;
+
+      bool canFormPfo = false;
+      bool canFormClusterlessPfo = false;
+
+      double mom = sqrt((theOutParticle_momentum.x()*theOutParticle_momentum.x()+theOutParticle_momentum.y()*theOutParticle_momentum.y()+theOutParticle_momentum.z()*theOutParticle_momentum.z()));
+
+      if(trackParameters.m_reachesCalorimeter.Get()>0 && mom>1. && track->quality(reco::TrackBase::tight) ){
+        canFormPfo = true;
+        canFormClusterlessPfo = true;
       }
       trackParameters.m_canFormPfo = canFormPfo;
       trackParameters.m_canFormClusterlessPfo = canFormClusterlessPfo;
@@ -1046,13 +1064,14 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   double sumCaloECALEnergyEM = 0.;
   double sumCaloHCALEnergyEM  = 0.;
   double sumCaloECALEnergyHAD= 0.;
+  double sumCaloECALEnergyHAD_unc= 0.;
   double sumCaloHCALEnergyHAD = 0.;
 
   // 
   // Process ECAL barrel rechits 
   // 
   for(unsigned i=0; i<ecalRecHitHandleEB->size(); i++) {
-	  
+    continue;	  
     const EcalRecHit * erh = &(*ecalRecHitHandleEB)[i];
     const DetId& detid = erh->detid();
     double energy = erh->energy();
@@ -1151,7 +1170,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloEnergyHAD += energy ;//FIXME * absorberCorrectionHAD;
     sumCaloECALEnergyEM  += energy  ;//* absorberCorrectionEM;
     sumCaloECALEnergyHAD += energy  ;//* absorberCorrectionHAD;
-
+ 
     caloHitParameters.m_hadronicEnergy = m_eCalToHadGeVBarrel * energy; // = energy; 
     caloHitParameters.m_layer = 1.;//PFLayer::ECAL_BARREL;
     caloHitParameters.m_nCellRadiationLengths = 0.0; // 6.;
@@ -1168,7 +1187,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   // process HCAL Barrel Hits
   //
   for(unsigned i=0; i<hcalRecHitHandleHBHE->size(); i++) {
-	  
+        continue; 	  
     const HBHERecHit * hrh = &(*hcalRecHitHandleHBHE)[i];
     const DetId& detid = hrh->detid();
     double energy = hrh->energy();
@@ -1272,6 +1291,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   //
   // Process HGC EE rec hits 
   // 
+
   int nNotFoundEE = 0, nCaloHitsEE = 0 ; 
   for(unsigned i=0; i<HGCeeRecHitHandle->size(); i++) {
 	  
@@ -1388,10 +1408,10 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     }
     caloHitParameters.m_mipEquivalentEnergy =   m_eCalToMipEndCap   * energy; // = energy; // HTAN 0 NS AP  
     
-    double angleCorrectionMIP(1.);
+    double angleCorrectionMIP(1.); 
     double hitR = distToFrontFace; 
     double hitZ = zf;
-    angleCorrectionMIP = hitR/hitZ;
+    angleCorrectionMIP = hitR/hitZ; 
 
     //---choose hits with eta-phi close to init. mc particle
     TVector3 hit3v(xf,yf,zf);
@@ -1429,7 +1449,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
     sumCaloECALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrEE;
     sumCaloECALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrEE;
-
+    sumCaloECALEnergyHAD_unc += energy ;
 
 
     if (m_energyCorrMethod == "ABSCORR")
@@ -1618,8 +1638,6 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     sumCaloHCALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrHEF;
     sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEF;
 
-
-
     if (m_energyCorrMethod == "ABSCORR")
     caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEF * energy * m_HAD_addCalibrHEF; // = energy; 
     else if (m_energyCorrMethod == "WEIGHTING")
@@ -1764,7 +1782,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
     if (std::fabs(hitEta-m_firstMCpartEta) < 0.05
           && std::fabs(hitPhi-m_firstMCpartPhi)< 0.05) {
 
-    h_MIP_HEB->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
+     h_MIP_HEB->Fill(caloHitParameters.m_mipEquivalentEnergy.Get());
     }
     if (caloHitParameters.m_mipEquivalentEnergy.Get() < m_hCalMipThresEndCapHEB) {
        //std::cout << "HEB MIP threshold rejected" << std::endl;
@@ -1789,7 +1807,6 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
     sumCaloHCALEnergyEM  += energy  * absorberCorrectionEM * m_EM_addCalibrHEB;
     sumCaloHCALEnergyHAD += energy  * absorberCorrectionHAD * m_HAD_addCalibrHEB;
-
 
     if (m_energyCorrMethod == "ABSCORR")
     caloHitParameters.m_hadronicEnergy = m_hCalToHadGeVEndCapHEB * energy * m_HAD_addCalibrHEB; // = energy; 
@@ -1827,14 +1844,17 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
   h_simDir_sumCaloEM ->Fill(simDir_sumCaloEnergyEM );
   h_simDir_sumCaloHad->Fill(simDir_sumCaloEnergyHAD);
 
-
   h2_Calo_EM_hcalEecalE->Fill(sumCaloECALEnergyEM, sumCaloHCALEnergyEM);
   h2_Calo_Had_hcalEecalE->Fill(sumCaloECALEnergyHAD, sumCaloHCALEnergyHAD);
   h_sumEcalEEM->Fill(sumCaloECALEnergyEM);
   h_sumHcalEEM->Fill(sumCaloHCALEnergyEM);
 
   h_sumEcalEHad->Fill(sumCaloECALEnergyHAD);
+  h_sumEcalEHad_unc->Fill(sumCaloECALEnergyHAD_unc);
+  if(sumCaloECALEnergyHAD>=0.5) h_sumEcalEHadc->Fill(sumCaloECALEnergyHAD);
+  if(sumCaloECALEnergyHAD<0.5) h_sumHcalEHadc->Fill(sumCaloHCALEnergyHAD);
   h_sumHcalEHad->Fill(sumCaloHCALEnergyHAD);
+  h_sumEHad->Fill(sumCaloHCALEnergyHAD+sumCaloECALEnergyHAD);
 
   for (int ilay=0; ilay<100; ilay++) {
      int ibin = ilay+1;
@@ -1860,6 +1880,7 @@ void runPandora::prepareHits( edm::Handle<EcalRecHitCollection> ecalRecHitHandle
 
 }
 
+
 void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > genpart){ // function to setup a mcParticle for pandora
   // PandoraPFANew/v00-09/include/Api/PandoraApi.h
   //class MCParticleParameters
@@ -1873,7 +1894,7 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
   //    pandora::InputAddress           m_pParentAddress;           ///< Address of the parent MC particle in the user framework
   //};
   // for(std::vector<reco::GenParticle>::const_iterator cP = genpart->begin();  cP != genpart->end(); cP++ ) {
-
+      
    const GenParticle * firstMCp = &(*genpart)[0];
    if (firstMCp) {
       m_firstMCpartEta = firstMCp->eta();
@@ -1885,81 +1906,79 @@ void runPandora::preparemcParticle(edm::Handle<std::vector<reco::GenParticle> > 
          m_secondMCpartEta = secondMCp->eta();
          m_secondMCpartPhi = secondMCp->phi();
       }
-   }
-
-   h_MCp_Eta->Fill(m_firstMCpartEta);
-   h_MCp_Phi->Fill(m_firstMCpartPhi);
-
-
+   } 
+  
+   //h_MCp_Eta->Fill(m_firstMCpartEta);
+   //h_MCp_Phi->Fill(m_firstMCpartPhi);
+      
+  
   RminVtxDaughter[0] = 999999.; //initialise for each event
   RminVtxDaughter[1] = 999999.; //initialise for each event
                                 //FIXME Attention will crash for one particle sample
   ZminVtxDaughter[0] = 999999.; //initialise for each event
   ZminVtxDaughter[1] = 999999.; //initialise for each event
                                 //FIXME Attention will crash for one particle sample
-
-
+  
+     
   isDecayedBeforeCalo[0] = 0;
   isDecayedBeforeCalo[1] = 0;
-  
+
   for(size_t i = 0; i < genpart->size(); ++ i) {
     const GenParticle * pa = &(*genpart)[i];
     PandoraApi::MCParticle::Parameters parameters;
-    parameters.m_energy = pa->energy();
+    parameters.m_energy = pa->energy(); 
     parameters.m_momentum = pandora::CartesianVector(pa->px() , pa->py(),  pa->pz() );
     parameters.m_vertex = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //in mm
-
-
+        
+        
     // parameters.m_endpoint = pandora::CartesianVector(position.x(), position.y(), position.z());
-    // Definition of the enpoint depends on the application that created the particle, e.g. the start point of the shower in a calorimeter. 
+    // Definition of the enpoint depends on the application that created the particle, e.g. the start point of the shower in a calorimeter.
     // If the particle was not created as a result of a continuous process where the parent particle continues, i.e.
     // hard ionization, Bremsstrahlung, elastic interactions, etc. then the vertex of the daughter particle is the endpoint.
     parameters.m_endpoint = pandora::CartesianVector(pa->vx() * 10. , pa->vy() * 10., pa->vz() * 10. ); //IS THIS CORRECT?! //NO, should be where it starts to decay
     parameters.m_particleId = pa->pdgId();
     parameters.m_pParentAddress = (void*) pa;
-    if( abs(pa->pdgId()) == 211 ){Egenpart->Fill( pa->energy() ); }; //AP NS // 11 electrons, 13 muons, 211 pions 
-    std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
-    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*m_pPandora, parameters));
-    
+    if(i==0) std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << std::endl;
+    PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::MCParticle::Create(*m_pPandora, parameters));  
+        
     // Create parent-daughter relationships
     // HepMC::GenParticle * theParticle = new HepMC::GenParticle(HepMC::FourVector(0.,0.,0.,0.),12,1);
-    size_t n = pa->numberOfDaughters();
+     size_t n = pa->numberOfDaughters();
     //std::cout << "The mc particle pdg id " << pa->pdgId() << " with energy " << pa->energy() << " and " << n << " daughters " <<  std::endl;
-
+        
     //Bool_t MCEndpointFound = kFALSE;
     //if (n
-
+        
     for(size_t j = 0; j < n; ++ j) {
       const Candidate * d = pa->daughter( j );
       //if we want to keep it also in GenParticle uncomment here
       const GenParticle * da = NULL;
       //We need to check if this daughter has an integer charge
       bool integercharge = ( ( (int) d->charge() ) - (d->charge()) ) == 0 ? true : false;
-      std::cout << "checking integer charge: Real Charge " << d->charge() << " int part " << ( (int) d->charge() ) << " bool " << std::endl;
-      da = new GenParticle( d->charge(), d->p4() , d->vertex() , d->pdgId() , d->status() , integercharge); 
-
-
+      da = new GenParticle( d->charge(), d->p4() , d->vertex() , d->pdgId() , d->status() , integercharge);
+        
+        
     double RaVeDa = 10 * std::sqrt(da->vx()*da->vx()+da->vy()*da->vy()+da->vz()*da->vz());
-
+         
     if (i<2) {
        if (RminVtxDaughter[i]>RaVeDa)
           RminVtxDaughter[i] = RaVeDa;
        if (ZminVtxDaughter[i]>da->vz())
           ZminVtxDaughter[i] = da->vz();
     }
-
-
-      
+  
+  
+  
       PANDORA_THROW_RESULT_IF(pandora::STATUS_CODE_SUCCESS, !=, PandoraApi::SetMCParentDaughterRelationship(*m_pPandora, pa , da));
-      
+  
     }
-
-
+  
+   
   }
-
+    
   if (ZminVtxDaughter[0] < 3170) isDecayedBeforeCalo[0] = 1;
   if (ZminVtxDaughter[1] < 3170) isDecayedBeforeCalo[1] = 1;
-
+    
 }
 
 void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSetup){
@@ -2013,11 +2032,15 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
   std::cout << " GENPART SIZE IS " << genpart->size() << std::endl;
 
   Double_t found_energy = -1;
+  Double_t ene_all_true = 0;
 
-  for(size_t i = 0; i < genpart->size(); ++ i) {
-           
+  for(size_t i = 0; i < genpart->size(); ++ i) { // 1 
+          
     const GenParticle * pa = &(*genpart)[i];
     ene_true    = pa->energy();
+     
+    if (pa->numberOfDaughters()==0)  ene_all_true = ene_all_true+ene_true;
+
     charge_true = 0;
     pT_true     = sqrt(pa->px()*pa->px()+pa->py()*pa->py());
     pid_true    = pa->pdgId();
@@ -2028,25 +2051,24 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
     if(pa->pdgId()>0) charge_true = 1;
     if(pa->pdgId()<0) charge_true = -1;
     if(pa->pdgId()==22) charge_true = 0;
-    std::cout << " IN GENPART LOOP charge min " << std::endl;
+     //std::cout << " IN GENPART LOOP charge min " << std::endl;
       double diff_min  = 1e9;
-      ene_match = -1;
-      mass_match   = 0;
-      pid_match    = 0;
-      pT_match     = 0;
-      charge_match = 0;
-      ene_match_em  = -1;
-      ene_match_had = -1;
-      ene_match_track = -1;
-
-      int nbPFOs = 0;
+      ene_match       = 0;
+      mass_match      = 0;
+      pid_match       = 0;
+      pT_match        = 0;
+      charge_match    = 0;
+      ene_match_em    = 0;
+      ene_match_had   = 0;
+      ene_match_track = 0;
  
+      nbPFOs = 0;
       for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){ // 4
-         nbPFOs++;
+        nbPFOs=nbPFOs+1;
         double charge = (*itPFO)->GetCharge() ;
         double energy = (*itPFO)->GetEnergy();
         double pid    = (*itPFO)->GetParticleId();
-
+ 
         //FIXME
         //NOTYET TLorentzVector Pfo4vec(0.,0.,0.,0.);
         //NOTYET if (m_energyCorrMethod == "WEIGHTING") {
@@ -2060,34 +2082,55 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
 
         double mass   = (*itPFO)->GetMass() ;
         double pT     = sqrt(((*itPFO)->GetMomentum()).GetX()*((*itPFO)->GetMomentum()).GetX()+((*itPFO)->GetMomentum()).GetY()*((*itPFO)->GetMomentum()).GetY()) ; // EDW GetX
-        //if (m_energyCorrMethod == "WEIGHTING") {
-        //   mass = Pfo4vec.M();
-        //}
 
-//        const ClusterList &clusterList((*itPFO)->GetClusterList());
-//        std::cout << " size of cluster list " << clusterList.size() << std::endl;
-//        ClusterVector clusterVector(clusterList.begin(), clusterList.end());
-//
-//     for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end();
-//        clusterIter != clusterIterEnd; ++clusterIter)
-//     {
-//        Cluster *pCluster = (*clusterIter);
+        const ClusterList &clusterList((*itPFO)->GetClusterList());
+        //std::cout << " size of cluster list " << clusterList.size() << std::endl;
+        ClusterVector clusterVector(clusterList.begin(), clusterList.end());
+        ene_em  =0;
+        ene_had =0;
+
+        PseudoLayer firstLayer = std::numeric_limits<unsigned int>::max();
+        PseudoLayer lastLayer = 0;
+
+    for (ClusterVector::const_iterator clusterIter = clusterVector.begin(), clusterIterEnd = clusterVector.end();
+        clusterIter != clusterIterEnd; ++clusterIter)
+    {
+        Cluster *pCluster = (*clusterIter);
 //        ene_em  = pCluster->GetElectromagneticEnergy();
 //        ene_had = pCluster->GetHadronicEnergy();
-//     }
+//	 std::cout << " clusterEMenergy INI " << pCluster->GetElectromagneticEnergy()  << std::endl;  
+// hits
+        const OrderedCaloHitList &orderedCaloHitList(pCluster->GetOrderedCaloHitList());
+        CaloHitList pCaloHitList;
+        orderedCaloHitList.GetCaloHitList(pCaloHitList);
+      
+       for (CaloHitList::const_iterator hitIter = pCaloHitList.begin(), hitIterEnd = pCaloHitList.end(); hitIter != hitIterEnd; ++hitIter)
+        {
+        const CaloHit *pCaloHit = (*hitIter);
+        // Determing extremal pseudolayers
+        const PseudoLayer pseudoLayer(pCaloHit->GetPseudoLayer());
+        if (pseudoLayer > lastLayer)
+            lastLayer = pseudoLayer;
+        if (pseudoLayer < firstLayer)
+            firstLayer = pseudoLayer;
+        }
+        
+     }
+      
 
+    
         //Hieu, 22.08.14
         //FIXME: for the moment this is a fast fix, should be merged with similar part below
         //       or simply remove that part (just for a few control histograms)
         double clusterEMenergy  = 0.;
         double clusterHADenergy = 0.;
-
+                 
         const pandora::ClusterAddressList clusterAddressList((*itPFO)->GetClusterAddressList());
         for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end();
             itCluster != itClusterEnd; ++itCluster)
         {
            const unsigned int nHitsInCluster((*itCluster).size());
-
+              
            for (unsigned int iHit = 0; iHit < nHitsInCluster; ++iHit)
            {
               const HGCRecHit *hgcHit = (HGCRecHit*)((*itCluster)[iHit]);
@@ -2096,13 +2139,13 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
               double nCellRadiationLengths = 0.;
               double absorberCorrectionEM = 1.;
               double absorberCorrectionHAD = 1.;
-
+                  
               const DetId& detid = hgcHit->id();
               if (!detid)
                  continue;
-
+        
               //const HGCHEDetId& detidHE = hgcHit->id();
-
+           
               ForwardSubdetector thesubdet = (ForwardSubdetector)detid.subdetId();
               //ForwardSubdetector thesubdetHE = (ForwardSubdetector)detidHE.subdetId();
               if (thesubdet == 3) {
@@ -2129,7 +2172,7 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
                     clusterEMenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToEMGeVEndCapHEF  * getEnergyWeight(D_HGCHEF, layer, EM) * m_hCalToMipEndCapHEF;
                     clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEF * m_hCalToHadGeVEndCapHEF * getEnergyWeight(D_HGCHEF, layer,HAD) * m_hCalToMipEndCapHEF;
                  }
-
+           
               }
               else if (thesubdet == 5) {
                  int layer = (int) ((HGCHEDetId)(detid)).layer() ;
@@ -2140,70 +2183,78 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
                  else if (m_energyCorrMethod=="WEIGHTING") {
                     clusterEMenergy  += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer, EM) * m_hCalToMipEndCapHEB;
                     clusterHADenergy += hgcHit->energy() * m_Calibr_ADC2GeV_HEB * m_hCalToEMGeVEndCapHEB * getEnergyWeight(D_HGCHEB, layer,HAD) * m_hCalToMipEndCapHEB;
-                 }
+                 }  
               }
               else {
               }
-
+       
            }
         }
+        
         ene_em = clusterEMenergy;
         ene_had = clusterHADenergy;
 
-
-
-//edw
-        const TrackList &trackList((*itPFO)->GetTrackList());
-        std::cout << " size of track list " << trackList.size() << std::endl;
+	const TrackList &trackList((*itPFO)->GetTrackList());
         TrackVector trackVector(trackList.begin(), trackList.end());
+
+	ene_track=0; 
 
      for (TrackVector::const_iterator trackIter = trackVector.begin(), trackIterEnd = trackVector.end();
         trackIter != trackIterEnd; ++trackIter)
     {
-        pandora::Track *pPandoraTrack = (*trackIter);
+         pandora::Track *pPandoraTrack = (*trackIter);
         // Extract pandora track states
         const TrackState &trackState(pPandoraTrack->GetTrackStateAtStart());
         const CartesianVector &momentum(trackState.GetMomentum());
         ene_track = momentum.GetMagnitude();
-    }
+     }
 
-        double diff = 1e10;
+    
+        double diff = 1e10;  
         if(charge_true == charge && energy != found_energy){
           diff = abs(energy-ene_true);
           if(diff<diff_min){ // 3
-           diff_min     = diff;
-           ene_match    = energy;
-           mass_match   = mass;
-           charge_match = charge;
-           pT_match     = pT;
-           pid_match    = pid;
+           diff_min      = diff;
+           ene_match     = energy;
+           mass_match    = mass;
+           charge_match  = charge;
+           pT_match      = pT;
+           pid_match     = pid;
            ene_match_em  = ene_em;
            ene_match_had = ene_had;
            ene_match_track = ene_track;
+           first_layer_match = double(firstLayer*1.);
+           last_layer_match  = double(lastLayer*1.);
+           if(pid_match==11  && last_layer_match > 30) pid_match = -211;
+           if(pid_match==-11 && last_layer_match > 30) pid_match =  211;
           } // 3
         }
+
       } // 4
-      
-      if(ene_match>0
-            //&& nbPFOs == 2
-            ){ // 2
+        
+
+      if(ene_match>0){ // 2
+       runno = iEvent.id().run();
+       eventno = iEvent.id().event();
+       lumi = iEvent.luminosityBlock();
        found_energy = ene_match;
        mytree->Fill();
-       Energy_res->Fill((ene_match-ene_true)/ene_true);
-       std::cout << " FOUND MATCH " << ene_match << " to " << ene_true << std::endl;
-       std::cout << " FOUND MATCH " << pT_match << " to " << pT_true << std::endl;
-       std::cout << " FOUND MATCH " << pid_match << " to " << pid_true << std::endl;
-       std::cout << " FOUND MATCH " << mass_match << " to " << mass_true << std::endl;
+       //std::cout << " FOUND MATCH " << ene_match << " to " << ene_true << std::endl;
+       //std::cout << " FOUND MATCH " << pT_match << " to " << pT_true << std::endl;
+       //std::cout << " FOUND MATCH " << pid_match << " to " << pid_true << std::endl;
+       //std::cout << " FOUND MATCH " << mass_match << " to " << mass_true << std::endl;
       } // 2
  } // 1
 
-  std::cout << "Starting reading PFOs" << std::endl;
+  std::cout << " ENERGY ALL TRUE " << ene_all_true << std::endl;
+
   double _sumPFOEnergy(0.);
   double sumClustEMEcalE(0.); //PFO cluster energy in Ecal
   double sumClustEMHcalE(0.); //PFO cluster energy in Hcal
   double sumClustHADEcalE(0.); //PFO cluster energy in Ecal
   double sumClustHADHcalE(0.); //PFO cluster energy in Hcal
 
+  double ene_all = 0;
   int nbPFOs(0);
   for (pandora::PfoList::const_iterator itPFO = pPfoList->begin(), itPFOEnd = pPfoList->end(); itPFO != itPFOEnd; ++itPFO){
     nbPFOs++;
@@ -2212,7 +2263,8 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
     //std::cout << "Mass: " << (*itPFO)->GetMass() << std::endl;
     std::cout << "Energy: " << (*itPFO)->GetEnergy() << std::endl;
     _sumPFOEnergy += (*itPFO)->GetEnergy();
-    if ( (*itPFO)->GetParticleId() > 0  ){Epfos->Fill( (*itPFO)->GetEnergy() );} // AP NS//
+
+    ene_all = ene_all + (*itPFO)->GetEnergy() ;
 
     //For the cluster we will deal with it after the finishing of the calo hit
     const pandora::ClusterAddressList clusterAddressList((*itPFO)->GetClusterAddressList());
@@ -2226,15 +2278,10 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
     PANDORA_MONITORING_API(VisualizeTracks(  trackAddressList  , "currentTrackList", AUTO, false, true  ) );    
     PANDORA_MONITORING_API(ViewEvent() );
 
-   std::cout << " ARE YOU GEETING IN HERE 1  ns, PFO(" << nbPFOs << "): " << clusterAddressList.size() << std::endl;
-
     for (pandora::ClusterAddressList::const_iterator itCluster = clusterAddressList.begin(), itClusterEnd = clusterAddressList.end(); itCluster != itClusterEnd; ++itCluster){
       const unsigned int nHitsInCluster((*itCluster).size());
-
-      std::cout << "# of hits in cluster " << nHitsInCluster << std::endl; 
       
       //const pandora::CaloHitAddressList &caloHitAddressList(*itCluster);
-
       //EcalRecHit * hgcrh = NULL;
       //HBHERecHit * hrh = NULL;
 
@@ -2298,12 +2345,9 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
          else {
          }
 
-         //std::cout << "TEST ecal energy: " << sumClustEcalE << std::endl;
-         //std::cout << "TEST hcal energy: " << sumClustHcalE << std::endl;
       }
 
-//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){
-	
+//      for (pandora::CaloHitAddressList::const_iterator hIter = caloHitAddressList.begin(), hIterEnd = caloHitAddressList.end(); hIter != hIterEnd; ++hIter){	
 //	pandora::CaloHit * ch = (pandora::CaloHit *) (*hIter);
 //	EcalRecHit * hgcrh = NULL;
 //	HBHERecHit * hrh = NULL;
@@ -2340,13 +2384,13 @@ void runPandora::preparePFO(const edm::Event& iEvent, const edm::EventSetup& iSe
 
     }
 
+  std::cout << " ENERGY  is  " << ene_all << std::endl;
+
   }
 
   h2_EM_hcalEecalE->Fill(sumClustEMEcalE,sumClustEMHcalE);
   h2_Had_hcalEecalE->Fill(sumClustHADEcalE,sumClustHADHcalE);
   h_sumPfoE->Fill(_sumPFOEnergy);
-  //h_sumPfoEEM->Fill(_sumPFOEnergyEM);
-  //h_sumPfoEHad->Fill(_sumPFOEnergyHad);
   h_nbPFOs->Fill(nbPFOs);
 
 	
@@ -2413,37 +2457,36 @@ void runPandora::beginJob()
   } 
 // END AP
 
-
-
   file = new TFile(_outputFileName.c_str(),"recreate");
-  const bool oldAddDir = TH1::AddDirectoryStatus();
-  TH1::AddDirectory(true);
-  // dbe_->book1D("TH1PFOEnergy","Energies of Pandora's PFOs",1000,0.,1000.);
-  Epfos = new TH1F("TH1PFOEnergy","Energy of Reconstructed PFO",1000,0.,1000.);
-  Egenpart = new TH1F("TH1GenParticlesEnergy","Energy of Generated Particles",1000,0.,1000.);
-  Energy_res = new TH1F("TH1RES","#Delta E / E ",100,-2.,2.);
 
-  h_sumCaloE = new TH1F("sumCaloE","sum hit E in Calos",1000,0,200);
-  h_sumCaloEM = new TH1F("sumCaloEM","sum hit E in Calos",1000,0,250);
-  h_sumCaloHad = new TH1F("sumCaloHad","sum hit E in Calos",1000,0,200);
-  h_simDir_sumCaloEM  = new TH1F("sumCaloEMsimDir","sum hit E in Calos",1000,0,250);
-  h_simDir_sumCaloHad = new TH1F("sumCaloHadsimDir","sum hit E in Calos",1000,0,250);
+  const bool oldAddDir = TH1::AddDirectoryStatus(); 
+  TH1::AddDirectory(true); 
+
+  h_sumCaloE = new TH1F("sumCaloE","sum hit E in Calos",1000,0,400);
+  h_sumCaloEM = new TH1F("sumCaloEM","sum hit E in Calos",1000,0,400);
+  h_sumCaloHad = new TH1F("sumCaloHad","sum hit E in Calos",1000,0,400);
+  h_simDir_sumCaloEM  = new TH1F("sumCaloEMsimDir","sum hit E in Calos",1000,0,400);
+  h_simDir_sumCaloHad = new TH1F("sumCaloHadsimDir","sum hit E in Calos",1000,0,400);
 
 
-  h_sumEcalEEM = new TH1F("sumEcalEEM","sum hit EM E in Ecal",1000,0,200);
-  h_sumHcalEEM = new TH1F("sumHcalEEM","sum hit EM E in Hcal",1000,0,200);
-  h_sumEcalEHad = new TH1F("sumEcalEHad","sum hit Had E in Ecal",1000,0,200);
-  h_sumHcalEHad = new TH1F("sumHcalEHad","sum hit Had E in Hcal",1000,0,200);
+  h_sumEcalEEM   = new TH1F("sumEcalEEM","sum hit EM E in Ecal",1000,0,350);
+  h_sumHcalEEM   = new TH1F("sumHcalEEM","sum hit EM E in Hcal",1000,0,350);
+  h_sumEcalEHad  = new TH1F("sumEcalEHad","sum hit Had E in Ecal",1000,0,400);
+  h_sumEcalEHad_unc = new TH1F("sumEcalEHad_unc","sum hit Had E in Ecal",1000,0,400);
+  h_sumHcalEHad  = new TH1F("sumHcalEHad","sum hit Had E in Hcal",1000,0,400);
+  h_sumHcalEHadc = new TH1F("sumHcalEHadc","sum hit Had E in Hcal",1000,0,400);
+  h_sumEcalEHadc = new TH1F("sumEcalEHadc","sum hit Had E in Hcal",1000,0,400);
+  h_sumEHad      = new TH1F("sumEHad","sum hit Had E ",1000,0,400);
 
   h_sumPfoE = new TH1F("hsumPfoE","sumPFOenergy",1000,0.,1000.);
   h_nbPFOs = new TH1F("hnbPfos","nb of rec PFOs",30,0.,30.);
 
-  h2_Calo_EM_hcalEecalE = new TH2F("CalohcalEecalEem","",1000,0,200,1000,0,200);
-  h2_Calo_Had_hcalEecalE = new TH2F("CalohcalEecalEhad","",1000,0,200,1000,0,200);
+  h2_Calo_EM_hcalEecalE = new TH2F("CalohcalEecalEem","",1000,0,400,1000,0,400);
+  h2_Calo_Had_hcalEecalE = new TH2F("CalohcalEecalEhad","",1000,0,400,1000,0,400);
 
 
-  h2_EM_hcalEecalE = new TH2F("hcalEecalEem","",1000,0,200,1000,0,200);
-  h2_Had_hcalEecalE = new TH2F("hcalEecalEhad","",1000,0,200,400,0,200);
+  h2_EM_hcalEecalE = new TH2F("hcalEecalEem","",1000,0,400,1000,0,400);
+  h2_Had_hcalEecalE = new TH2F("hcalEecalEhad","",1000,0,400,400,0,400);
 
   h_MCp_Eta = new TH1F("MCp_Eta","MCp_Eta",300,-3.5,3.5);
   h_MCp_Phi = new TH1F("MCp_Phi","MCp_Phi",300,-3.5,3.5);
@@ -2464,7 +2507,6 @@ void runPandora::beginJob()
   h_MIP_Corr_HEF = new TH1F("MIPCorrHEF","Mip corrected in HEF",1000,0,10);
   h_MIP_Corr_HEB = new TH1F("MIPCorrHEB","Mip corrected in HEB",1000,0,10);
 
-
   mytree = new TTree("mytree","mytree");
   mytree->Branch("ene_true",&ene_true);
   mytree->Branch("mass_true",&mass_true);
@@ -2480,8 +2522,14 @@ void runPandora::beginJob()
   mytree->Branch("charge_match",&charge_match);
   mytree->Branch("pid_match",&pid_match);
   mytree->Branch("isDecBefCal",&isDecBefCal);
-  
-  TH1::AddDirectory(oldAddDir);
+  mytree->Branch("first_layer_match",&first_layer_match);
+  mytree->Branch("last_layer_match",&last_layer_match);
+  mytree->Branch("runno",&runno);
+  mytree->Branch("eventno",&eventno);
+  mytree->Branch("lumi",&lumi);
+  mytree->Branch("nbPFOs",&nbPFOs);
+
+  TH1::AddDirectory(oldAddDir); 
 
   // read in calibration parameters
   initPandoraCalibrParameters();
@@ -2596,7 +2644,7 @@ double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
    if (showerType == EM)
       switch (subDet) {
          case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE" ,"energyWeight_EM_EE" );
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_EM_EE");
             break;
          case D_HGCHEF:
             weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_EM_HEF");
@@ -2610,7 +2658,7 @@ double runPandora::getEnergyWeight(int subDet, int layer, int showerType)
    else 
       switch (subDet) {
          case D_HGCEE :
-            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE" ,"energyWeight_Had_EE" );
+            weight = stm->getCorrectionAtPoint(layer+1,"layerSet_EE","energyWeight_Had_EE");
             break;
          case D_HGCHEF:
             weight = stm->getCorrectionAtPoint(layer+1,"layerSet_HEF","energyWeight_Had_HEF");
@@ -2681,3 +2729,4 @@ runPandora::fillDescriptions(edm::ConfigurationDescriptions& descriptions) {
 
 //define this as a plug-in
 DEFINE_FWK_MODULE(runPandora);
+
